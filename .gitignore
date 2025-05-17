@@ -1,0 +1,46 @@
+/vendor/
+/node_modules/
+/public/hot/
+/public/storage/
+/storage/*.key
+/storage/logs/*.log
+/.idea/
+/.vscode/
+/.vagrant/
+Homestead.json
+Homestead.yaml
+npm-debug.log
+yarn-error.log
+.env
+.env.backup
+.phpunit.result.cache
+docker-compose.override.yml
+Thumbs.db
+.DS_Store
+.phpstorm.meta.php
+_ide_helper.php
+_ide_helper_models.php
+/.php-cs-fixer.cache
+/.fleet
+/public/build/
+/frontend-copy/
+/api.bak/
+/bak/
+.idea/
+commandes-laravel.md
+
+# Ignorer les fichiers de cache frontend
+/frontend/.next/
+/frontend/node_modules/
+
+# Fichiers d'environnement
+/api/.env
+/frontend/.env.local
+/frontend/.env.development.local
+/frontend/.env.test.local
+/frontend/.env.production.local
+
+# Fichiers temporaires
+*.log
+*.swp
+*.swo

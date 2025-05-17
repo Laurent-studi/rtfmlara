@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 /**
  * Class Quiz
@@ -40,12 +41,20 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
  */
 class Quiz extends Model
 {
+	use HasFactory;
+
 	protected $table = 'quizzes';
 
 	protected $casts = [
 		'creator_id' => 'int',
 		'time_per_question' => 'int',
-		'multiple_answers' => 'bool'
+		'multiple_answers' => 'bool',
+		'difficulty_level' => 'integer',
+		'time_limit' => 'integer',
+		'is_featured' => 'boolean',
+		'is_published' => 'boolean',
+		'publish_date' => 'datetime',
+		'meta_data' => 'array',
 	];
 
 	protected $fillable = [
@@ -56,7 +65,15 @@ class Quiz extends Model
 		'time_per_question',
 		'multiple_answers',
 		'status',
-		'code'
+		'code',
+		'difficulty_level',
+		'time_limit',
+		'is_featured',
+		'is_published',
+		'created_by',
+		'publish_date',
+		'image_url',
+		'meta_data',
 	];
 
 	public function user()
@@ -142,5 +159,51 @@ class Quiz extends Model
 		} while (self::where('code', $code)->exists());
 		
 		return $code;
+	}
+
+	/**
+	 * Get the category of the quiz.
+	 */
+	public function category()
+	{
+		return $this->belongsTo(Category::class);
+	}
+
+	/**
+	 * Get the attempts for the quiz.
+	 */
+	public function attempts()
+	{
+		return $this->hasMany(QuizAttempt::class);
+	}
+
+	/**
+	 * Scope a query to only include published quizzes.
+	 */
+	public function scopePublished($query)
+	{
+		return $query->where('is_published', true)
+			->where(function($q) {
+				$q->whereNull('publish_date')
+				  ->orWhere('publish_date', '<=', now());
+			});
+	}
+
+	/**
+	 * Scope a query to only include featured quizzes.
+	 */
+	public function scopeFeatured($query)
+	{
+		return $query->where('is_featured', true);
+	}
+
+	/**
+	 * Count the number of questions in this quiz.
+	 *
+	 * @return int
+	 */
+	public function getQuestionsCountAttribute(): int
+	{
+		return $this->questions()->count();
 	}
 }

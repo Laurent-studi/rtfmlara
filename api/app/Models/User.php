@@ -9,6 +9,10 @@ namespace App\Models;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 
 /**
  * Class User
@@ -41,19 +45,36 @@ use Illuminate\Database\Eloquent\Model;
  *
  * @package App\Models
  */
-class User extends Model
+class User extends Authenticatable
 {
+	use HasApiTokens, HasFactory, Notifiable;
+
 	protected $table = 'users';
 
 	protected $hidden = [
-		'password'
+		'password',
+		'remember_token',
 	];
 
 	protected $fillable = [
 		'username',
 		'email',
 		'password',
-		'avatar'
+		'avatar',
+		'push_enabled',
+		'trophies_count',
+		'achievement_points',
+	];
+
+	/**
+	 * The attributes that should be cast.
+	 *
+	 * @var array<string, string>
+	 */
+	protected $casts = [
+		'email_verified_at' => 'datetime',
+		'password' => 'hashed',
+		'push_enabled' => 'boolean',
 	];
 
 	public function battle_royale_participants()
@@ -142,5 +163,57 @@ class User extends Model
 	public function user_sound_preferences()
 	{
 		return $this->hasMany(UserSoundPreference::class);
+	}
+
+	/**
+	 * Get the achievements of the user.
+	 */
+	public function achievements()
+	{
+		return $this->hasMany(UserAchievement::class);
+	}
+
+	/**
+	 * Get the stats of the user.
+	 */
+	public function stats()
+	{
+		return $this->hasOne(UserStat::class);
+	}
+
+	/**
+	 * Get the quiz attempts of the user.
+	 */
+	public function quizAttempts()
+	{
+		return $this->hasMany(QuizAttempt::class);
+	}
+
+	/**
+	 * Check if the user has a badge.
+	 *
+	 * @param int $badgeId
+	 * @return bool
+	 */
+	public function hasBadge(int $badgeId): bool
+	{
+		return $this->achievements()
+			->where('achievable_type', Badge::class)
+			->where('achievable_id', $badgeId)
+			->exists();
+	}
+
+	/**
+	 * Check if the user has a trophy.
+	 *
+	 * @param int $trophyId
+	 * @return bool
+	 */
+	public function hasTrophy(int $trophyId): bool
+	{
+		return $this->achievements()
+			->where('achievable_type', Trophy::class)
+			->where('achievable_id', $trophyId)
+			->exists();
 	}
 }

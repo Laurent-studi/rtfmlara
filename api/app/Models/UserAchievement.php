@@ -8,6 +8,7 @@ namespace App\Models;
 
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 /**
  * Class UserAchievement
@@ -28,6 +29,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class UserAchievement extends Model
 {
+	use HasFactory;
+
 	protected $table = 'user_achievements';
 	public $timestamps = false;
 
@@ -36,7 +39,8 @@ class UserAchievement extends Model
 		'badge_id' => 'int',
 		'reward_id' => 'int',
 		'trophy_id' => 'int',
-		'earned_at' => 'datetime'
+		'earned_at' => 'datetime',
+		'data' => 'array',
 	];
 
 	protected $fillable = [
@@ -44,7 +48,8 @@ class UserAchievement extends Model
 		'badge_id',
 		'reward_id',
 		'trophy_id',
-		'earned_at'
+		'earned_at',
+		'data',
 	];
 
 	public function badge()
@@ -65,5 +70,13 @@ class UserAchievement extends Model
 	public function user()
 	{
 		return $this->belongsTo(User::class);
+	}
+
+	/**
+	 * Get the owning achievable model.
+	 */
+	public function achievable()
+	{
+		return $this->morphTo();
 	}
 }

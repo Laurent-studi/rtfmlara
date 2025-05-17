@@ -1,6 +1,6 @@
 # RTFM - Quiz & Apprentissage Interactif
 
-![RTFM Logo](frontend-site/public/img/logo10.png)
+![RTFM Logo](frontend-site/public/img/logo5.png)
 
 
 <p align="center">

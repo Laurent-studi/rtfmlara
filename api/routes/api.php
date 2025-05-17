@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\PdfExportController;
 use App\Http\Controllers\Api\SeasonalThemeController;
 use App\Http\Controllers\Api\SoundEffectController;
 use App\Http\Controllers\Api\TagController;
+use App\Http\Controllers\Api\AchievementController;
 
 // Routes publiques
 Route::post('/register', [AuthController::class, 'register']);
@@ -86,7 +87,28 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Badges et trophées
     Route::get('/badges', [BadgeController::class, 'index']);
+    Route::get('/badges/{badge}', [BadgeController::class, 'show']);
+    Route::post('/badges', [BadgeController::class, 'store'])->middleware('can:create,App\Models\Badge');
+    Route::put('/badges/{badge}', [BadgeController::class, 'update']);
+    Route::delete('/badges/{badge}', [BadgeController::class, 'destroy']);
+    Route::post('/badges/{badge}/award', [BadgeController::class, 'award'])->middleware('can:award,badge');
+    
     Route::get('/trophies', [TrophyController::class, 'index']);
+    Route::get('/trophies/{trophy}', [TrophyController::class, 'show']);
+    Route::post('/trophies', [TrophyController::class, 'store'])->middleware('can:create,App\Models\Trophy');
+    Route::put('/trophies/{trophy}', [TrophyController::class, 'update']);
+    Route::delete('/trophies/{trophy}', [TrophyController::class, 'destroy']);
+    Route::post('/trophies/{trophy}/award', [TrophyController::class, 'award'])->middleware('can:award,trophy');
+    Route::get('/trophies/{id}/users', [TrophyController::class, 'getUsersWithTrophy']);
+    
+    // Achievements (combinaison de badges et trophées)
+    Route::get('/achievements', [AchievementController::class, 'getUserAchievements']);
+    Route::get('/achievements/users/{user}', [AchievementController::class, 'getAchievementsForUser']);
+    Route::get('/achievements/unachieved', [AchievementController::class, 'getUnachievedAchievements']);
+    Route::post('/achievements/check', [AchievementController::class, 'checkForNewAchievements']);
+    Route::get('/achievements/recent', [AchievementController::class, 'getRecentAchievements']);
+    Route::get('/achievements/categories', [AchievementController::class, 'getCategories']);
+    Route::get('/achievements/categories/{category}', [AchievementController::class, 'getAchievementsByCategory']);
     
     // Notifications
     Route::get('/notifications', [NotificationController::class, 'index']);

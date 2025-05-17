@@ -2,8 +2,9 @@
 
 namespace App\Events;
 
-use App\Models\User;
 use App\Models\Trophy;
+use App\Models\User;
+use App\Models\UserAchievement;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
@@ -17,48 +18,80 @@ class TrophyAwarded implements ShouldBroadcast
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     /**
+     * L'utilisateur qui a obtenu le trophée.
+     *
      * @var User
      */
-    public $user;
+    public User $user;
 
     /**
+     * Le trophée obtenu.
+     *
      * @var Trophy
      */
-    public $trophy;
+    public Trophy $trophy;
 
     /**
-     * Create a new event instance.
+     * L'enregistrement UserAchievement créé.
+     *
+     * @var UserAchievement
      */
-    public function __construct(User $user, Trophy $trophy)
+    public UserAchievement $achievement;
+
+    /**
+     * Créez une nouvelle instance d'événement.
+     *
+     * @param User $user
+     * @param Trophy $trophy
+     * @param UserAchievement $achievement
+     * @return void
+     */
+    public function __construct(User $user, Trophy $trophy, UserAchievement $achievement)
     {
         $this->user = $user;
         $this->trophy = $trophy;
+        $this->achievement = $achievement;
     }
 
     /**
-     * Get the channels the event should broadcast on.
+     * Obtenir les canaux sur lesquels l'événement doit être diffusé.
      *
-     * @return array<int, \Illuminate\Broadcasting\Channel>
+     * @return \Illuminate\Broadcasting\Channel|array
      */
-    public function broadcastOn(): array
+    public function broadcastOn()
     {
-        return [
-            new PrivateChannel('user.' . $this->user->id),
-        ];
+        return new PrivateChannel('user.' . $this->user->id);
     }
 
     /**
-     * Get the data to broadcast.
+     * Les données à diffuser.
      *
      * @return array
      */
-    public function broadcastWith(): array
+    public function broadcastWith()
     {
         return [
-            'trophy_id' => $this->trophy->id,
-            'trophy_name' => $this->trophy->name,
-            'trophy_description' => $this->trophy->description,
-            'awarded_at' => now()->toIso8601String(),
+            'trophy' => [
+                'id' => $this->trophy->id,
+                'name' => $this->trophy->name,
+                'description' => $this->trophy->description,
+                'icon' => $this->trophy->icon,
+                'image_url' => $this->trophy->image_url,
+                'level' => $this->trophy->level,
+                'points' => $this->trophy->points,
+            ],
+            'earned_at' => $this->achievement->earned_at->format('Y-m-d H:i:s'),
+            'total_points' => $this->user->getAchievementPoints(),
         ];
+    }
+
+    /**
+     * Le nom de l'événement pour la diffusion.
+     *
+     * @return string
+     */
+    public function broadcastAs()
+    {
+        return 'trophy.awarded';
     }
 }

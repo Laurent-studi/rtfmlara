@@ -7,6 +7,7 @@ use App\Events\QuizCompleted;
 use App\Events\TrophyAwarded;
 use App\Listeners\NotifyUserForBadge;
 use App\Listeners\ProcessQuizResults;
+use App\Listeners\SendAchievementNotification;
 use App\Listeners\UpdateUserAchievements;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Listeners\SendEmailVerificationNotification;
@@ -27,15 +28,26 @@ class EventServiceProvider extends ServiceProvider
         
         TrophyAwarded::class => [
             UpdateUserAchievements::class,
+            SendAchievementNotification::class,
         ],
         
         BadgeEarned::class => [
             NotifyUserForBadge::class,
+            SendAchievementNotification::class,
         ],
         
         QuizCompleted::class => [
             ProcessQuizResults::class,
         ],
+    ];
+
+    /**
+     * Les abonnés d'événements à enregistrer.
+     *
+     * @var array
+     */
+    protected $subscribe = [
+        SendAchievementNotification::class,
     ];
 
     /**

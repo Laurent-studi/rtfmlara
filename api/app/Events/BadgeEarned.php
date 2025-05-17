@@ -2,8 +2,9 @@
 
 namespace App\Events;
 
-use App\Models\User;
 use App\Models\Badge;
+use App\Models\User;
+use App\Models\UserAchievement;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
@@ -17,49 +18,78 @@ class BadgeEarned implements ShouldBroadcast
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
     /**
+     * L'utilisateur qui a obtenu le badge.
+     *
      * @var User
      */
-    public $user;
+    public User $user;
 
     /**
+     * Le badge obtenu.
+     *
      * @var Badge
      */
-    public $badge;
+    public Badge $badge;
 
     /**
-     * Create a new event instance.
+     * L'enregistrement UserAchievement créé.
+     *
+     * @var UserAchievement
      */
-    public function __construct(User $user, Badge $badge)
+    public UserAchievement $achievement;
+
+    /**
+     * Créez une nouvelle instance d'événement.
+     *
+     * @param User $user
+     * @param Badge $badge
+     * @param UserAchievement $achievement
+     * @return void
+     */
+    public function __construct(User $user, Badge $badge, UserAchievement $achievement)
     {
         $this->user = $user;
         $this->badge = $badge;
+        $this->achievement = $achievement;
     }
 
     /**
-     * Get the channels the event should broadcast on.
+     * Obtenir les canaux sur lesquels l'événement doit être diffusé.
      *
-     * @return array<int, \Illuminate\Broadcasting\Channel>
+     * @return \Illuminate\Broadcasting\Channel|array
      */
-    public function broadcastOn(): array
+    public function broadcastOn()
     {
-        return [
-            new PrivateChannel('user.' . $this->user->id),
-        ];
+        return new PrivateChannel('user.' . $this->user->id);
     }
 
     /**
-     * Get the data to broadcast.
+     * Les données à diffuser.
      *
      * @return array
      */
-    public function broadcastWith(): array
+    public function broadcastWith()
     {
         return [
-            'badge_id' => $this->badge->id,
-            'badge_name' => $this->badge->name,
-            'badge_description' => $this->badge->description,
-            'badge_image' => $this->badge->image_url,
-            'earned_at' => now()->toIso8601String(),
+            'badge' => [
+                'id' => $this->badge->id,
+                'name' => $this->badge->name,
+                'description' => $this->badge->description,
+                'icon' => $this->badge->icon,
+                'image_url' => $this->badge->image_url,
+                'category' => $this->badge->category,
+            ],
+            'earned_at' => $this->achievement->earned_at->format('Y-m-d H:i:s'),
         ];
+    }
+
+    /**
+     * Le nom de l'événement pour la diffusion.
+     *
+     * @return string
+     */
+    public function broadcastAs()
+    {
+        return 'badge.earned';
     }
 }

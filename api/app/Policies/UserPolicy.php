@@ -12,7 +12,8 @@ class UserPolicy
      */
     public function viewAny(User $user): bool
     {
-        return false;
+        // Les administrateurs peuvent voir tous les utilisateurs
+        return $user->hasRole('admin');
     }
 
     /**
@@ -20,7 +21,9 @@ class UserPolicy
      */
     public function view(User $user, User $model): bool
     {
-        return false;
+        // Tout utilisateur peut voir les profils publics
+        // Les détails sensibles sont gérés par UserResource
+        return true;
     }
 
     /**
@@ -28,7 +31,9 @@ class UserPolicy
      */
     public function create(User $user): bool
     {
-        return false;
+        // Seuls les administrateurs peuvent créer des utilisateurs
+        // L'inscription normale passe par les routes d'authentification
+        return $user->hasRole('admin');
     }
 
     /**
@@ -36,7 +41,9 @@ class UserPolicy
      */
     public function update(User $user, User $model): bool
     {
-        return false;
+        // Un utilisateur peut modifier son propre profil
+        // Un administrateur peut modifier n'importe quel profil
+        return $user->id === $model->id || $user->hasRole('admin');
     }
 
     /**
@@ -44,7 +51,11 @@ class UserPolicy
      */
     public function delete(User $user, User $model): bool
     {
-        return false;
+        // Un utilisateur peut supprimer son propre compte
+        // Un administrateur peut supprimer n'importe quel compte
+        // Mais un administrateur ne peut pas se supprimer lui-même
+        return ($user->id === $model->id && !$user->hasRole('admin')) || 
+               ($user->hasRole('admin') && $user->id !== $model->id);
     }
 
     /**
@@ -52,7 +63,8 @@ class UserPolicy
      */
     public function restore(User $user, User $model): bool
     {
-        return false;
+        // Seuls les administrateurs peuvent restaurer un utilisateur supprimé
+        return $user->hasRole('admin');
     }
 
     /**
@@ -60,6 +72,27 @@ class UserPolicy
      */
     public function forceDelete(User $user, User $model): bool
     {
-        return false;
+        // Seuls les super-administrateurs peuvent supprimer définitivement un utilisateur
+        return $user->hasRole('super-admin');
+    }
+    
+    /**
+     * Determine whether the user can view all achievements.
+     */
+    public function viewAchievements(User $user, User $model): bool
+    {
+        // Un utilisateur peut voir ses propres réalisations
+        // Un administrateur peut voir les réalisations de n'importe quel utilisateur
+        return $user->id === $model->id || $user->hasRole('admin');
+    }
+    
+    /**
+     * Determine whether the user can view statistics.
+     */
+    public function viewStats(User $user, User $model): bool
+    {
+        // Un utilisateur peut voir ses propres statistiques
+        // Un administrateur peut voir les statistiques de n'importe quel utilisateur
+        return $user->id === $model->id || $user->hasRole('admin');
     }
 }

@@ -14,6 +14,22 @@ class QuizCollection extends ResourceCollection
      */
     public function toArray(Request $request): array
     {
-        return parent::toArray($request);
+        return [
+            'data' => $this->collection,
+            'meta' => [
+                'total' => $this->resource->total(),
+                'count' => $this->resource->count(),
+                'per_page' => $this->resource->perPage(),
+                'current_page' => $this->resource->currentPage(),
+                'total_pages' => $this->resource->lastPage(),
+                'has_more_pages' => $this->resource->hasMorePages(),
+            ],
+            'links' => [
+                'first' => $this->resource->url(1),
+                'last' => $this->resource->url($this->resource->lastPage()),
+                'prev' => $this->resource->previousPageUrl(),
+                'next' => $this->resource->nextPageUrl(),
+            ],
+        ];
     }
 }

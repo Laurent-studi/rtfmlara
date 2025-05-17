@@ -154,23 +154,30 @@ class User extends Authenticatable
 		return $this->hasMany(UserAchievement::class);
 	}
 
-	public function interests()
-	{
-		return $this->belongsToMany(Interest::class, 'user_interests')
-					->withPivot('weight');
-	}
-
-	public function user_sound_preferences()
-	{
-		return $this->hasMany(UserSoundPreference::class);
-	}
-
 	/**
 	 * Get the achievements of the user.
 	 */
 	public function achievements()
 	{
 		return $this->hasMany(UserAchievement::class);
+	}
+
+	/**
+	 * Get the badges earned by the user.
+	 */
+	public function badges()
+	{
+		return $this->morphedByMany(Badge::class, 'achievable', 'user_achievements')
+			->withPivot('earned_at', 'data');
+	}
+
+	/**
+	 * Get the trophies earned by the user.
+	 */
+	public function trophies()
+	{
+		return $this->morphedByMany(Trophy::class, 'achievable', 'user_achievements')
+			->withPivot('earned_at', 'data');
 	}
 
 	/**
@@ -190,6 +197,17 @@ class User extends Authenticatable
 	}
 
 	/**
+	 * Check if the user has a specific role.
+	 *
+	 * @param string $roleName
+	 * @return bool
+	 */
+	public function hasRole(string $roleName): bool
+	{
+		return $this->roles()->where('name', $roleName)->exists();
+	}
+
+	/**
 	 * Check if the user has a badge.
 	 *
 	 * @param int $badgeId
@@ -197,10 +215,7 @@ class User extends Authenticatable
 	 */
 	public function hasBadge(int $badgeId): bool
 	{
-		return $this->achievements()
-			->where('achievable_type', Badge::class)
-			->where('achievable_id', $badgeId)
-			->exists();
+		return $this->badges()->where('id', $badgeId)->exists();
 	}
 
 	/**
@@ -211,9 +226,65 @@ class User extends Authenticatable
 	 */
 	public function hasTrophy(int $trophyId): bool
 	{
-		return $this->achievements()
-			->where('achievable_type', Trophy::class)
-			->where('achievable_id', $trophyId)
-			->exists();
+		return $this->trophies()->where('id', $trophyId)->exists();
+	}
+
+	/**
+	 * Calculate the total achievement points.
+	 *
+	 * @return int
+	 */
+	public function getAchievementPoints(): int
+	{
+		return $this->trophies()->sum('points');
+	}
+
+	/**
+	 * Get badges that the user doesn't have yet.
+	 *
+	 * @return \Illuminate\Database\Eloquent\Collection
+	 */
+	public function getUnachievedBadges()
+	{
+		$userBadgeIds = $this->badges()->pluck('id')->toArray();
+		return Badge::whereNotIn('id', $userBadgeIds)
+			->where('is_active', true)
+			->get();
+	}
+
+	/**
+	 * Get trophies that the user doesn't have yet.
+	 *
+	 * @return \Illuminate\Database\Eloquent\Collection
+	 */
+	public function getUnachievedTrophies()
+	{
+		$userTrophyIds = $this->trophies()->pluck('id')->toArray();
+		return Trophy::whereNotIn('id', $userTrophyIds)
+			->where('is_active', true)
+			->get();
+	}
+
+	/**
+	 * Check if the user can earn achievements of a specific category.
+	 *
+	 * @param string $category
+	 * @return bool
+	 */
+	public function canEarnAchievementsInCategory(string $category): bool
+	{
+		// Vérifier les limitations par catégorie si nécessaire
+		return true;
+	}
+
+	public function interests()
+	{
+		return $this->belongsToMany(Interest::class, 'user_interests')
+					->withPivot('weight');
+	}
+
+	public function user_sound_preferences()
+	{
+		return $this->hasMany(UserSoundPreference::class);
 	}
 }

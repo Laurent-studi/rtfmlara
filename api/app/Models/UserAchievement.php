@@ -9,21 +9,21 @@ namespace App\Models;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 /**
  * Class UserAchievement
  * 
  * @property int $id
- * @property int|null $user_id
- * @property int|null $badge_id
- * @property int|null $reward_id
- * @property int|null $trophy_id
+ * @property int $user_id
+ * @property string $achievable_type
+ * @property int $achievable_id
  * @property Carbon $earned_at
+ * @property array|null $data
  * 
- * @property Badge|null $badge
- * @property Reward|null $reward
- * @property Trophy|null $trophy
- * @property User|null $user
+ * @property User $user
+ * @property Achievement $achievable
  *
  * @package App\Models
  */
@@ -31,52 +31,78 @@ class UserAchievement extends Model
 {
 	use HasFactory;
 
+	/**
+	 * Le nom de la table associée au modèle.
+	 *
+	 * @var string
+	 */
 	protected $table = 'user_achievements';
+
+	/**
+	 * Indique si le modèle utilise les timestamps.
+	 *
+	 * @var bool
+	 */
 	public $timestamps = false;
 
+	/**
+	 * Les attributs qui doivent être convertis.
+	 *
+	 * @var array<string, string>
+	 */
 	protected $casts = [
 		'user_id' => 'int',
-		'badge_id' => 'int',
-		'reward_id' => 'int',
-		'trophy_id' => 'int',
+		'achievable_id' => 'int',
 		'earned_at' => 'datetime',
 		'data' => 'array',
 	];
 
+	/**
+	 * Les attributs qui sont assignables en masse.
+	 *
+	 * @var array<int, string>
+	 */
 	protected $fillable = [
 		'user_id',
-		'badge_id',
-		'reward_id',
-		'trophy_id',
+		'achievable_type',
+		'achievable_id',
 		'earned_at',
 		'data',
 	];
 
-	public function badge()
-	{
-		return $this->belongsTo(Badge::class);
-	}
-
-	public function reward()
-	{
-		return $this->belongsTo(Reward::class);
-	}
-
-	public function trophy()
-	{
-		return $this->belongsTo(Trophy::class);
-	}
-
-	public function user()
+	/**
+	 * Obtenir l'utilisateur associé à cette réalisation.
+	 */
+	public function user(): BelongsTo
 	{
 		return $this->belongsTo(User::class);
 	}
 
 	/**
-	 * Get the owning achievable model.
+	 * Obtenir l'achievement polymorphique (badge ou trophée).
 	 */
-	public function achievable()
+	public function achievable(): MorphTo
 	{
 		return $this->morphTo();
+	}
+
+	/**
+	 * Vérifier si l'achievement est un badge.
+	 * 
+	 * @return bool
+	 */
+	public function isBadge(): bool
+	{
+		return $this->achievable_type === Badge::class;
+	}
+
+	/**
+	 * Vérifier si l'achievement est un trophée.
+	 * 
+	 * @return bool
+	 */
+	public function isTrophy(): bool
+	{
+		return $this->achievable_type === Trophy::class;
 	}
 }

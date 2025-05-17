@@ -14,6 +14,10 @@ class AnswerCollection extends ResourceCollection
      */
     public function toArray(Request $request): array
     {
-        return parent::toArray($request);
+        return [
+            'data' => $this->collection,
+            // Pour les réponses, on n'inclut généralement pas de pagination
+            // car elles sont souvent chargées en relation avec les questions
+        ];
     }
 }

@@ -9,20 +9,11 @@
   <img src="https://img.shields.io/badge/Laravel-12.x-FF2D20?style=for-the-badge&logo=laravel&logoColor=white" alt="Laravel 12">
   <img src="https://img.shields.io/badge/MySQL-5.7+-4479A1?style=for-the-badge&logo=mysql&logoColor=white" alt="MySQL">
   <img src="https://img.shields.io/badge/Next.js-15-000000?style=for-the-badge&logo=next.js&logoColor=white" alt="Next.js">
-  <img src="https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black" alt="React">
   <img src="https://img.shields.io/badge/TypeScript-5+-3178C6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/TailwindCSS-4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="TailwindCSS">
-  <img src="https://img.shields.io/badge/Zustand-State-000000?style=for-the-badge&logo=react&logoColor=white" alt="Zustand">
-  <img src="https://img.shields.io/badge/Socket.io-Realtime-010101?style=for-the-badge&logo=socketdotio&logoColor=white" alt="Socket.io">
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="MIT License">
 
-  <!-- GitHub Repo -->
-  <br />
-  <img src="https://img.shields.io/github/last-commit/Laurent-studi/rtfmlara?style=for-the-badge" alt="Last Commit">
-  <img src="https://img.shields.io/github/issues/Laurent-studi/rtfmlara?style=for-the-badge" alt="Issues">
-  <img src="https://img.shields.io/github/issues-pr/Laurent-studi/rtfmlara?style=for-the-badge" alt="Pull Requests">
-  <img src="https://img.shields.io/github/stars/Laurent-studi/rtfmlara?style=for-the-badge" alt="Stars">
-  <img src="https://img.shields.io/github/forks/Laurent-studi/rtfmlara?style=for-the-badge" alt="Forks">
+
 </p>
 
 ## 🚀 À propos du projet

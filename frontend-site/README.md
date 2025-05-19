@@ -1,39 +1,84 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Frontend RTFM – Next.js
 
-## Getting Started
+Bienvenue dans le frontend de **RTFM - Quiz & Apprentissage Interactif**.  
+Cette application propose une expérience utilisateur moderne, interactive et responsive pour participer à des quiz, suivre sa progression et interagir en temps réel.
 
-First, run the development server:
+![Next.js](https://img.shields.io/badge/Next.js-15-000000?style=for-the-badge&logo=next.js&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5+-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/TailwindCSS-4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+
+---
+
+## ✨ Fonctionnalités principales
+
+- **Quiz interactifs en temps réel**
+- **Mode Battle Royale & Tournois**
+- **Système de badges, trophées, XP**
+- **Statistiques d'apprentissage**
+- **Personnalisation (thèmes, avatars, sons)**
+- **Export PDF des résultats**
+- **Mode hors ligne**
+- **Animations fluides et effets 3D**
+
+---
+
+## 🛠️ Technologies
+
+- **Next.js 15**
+- **React 19**
+- **TypeScript**
+- **Tailwind CSS 4**
+- **Zustand** (gestion d'état)
+- **Framer Motion** (animations)
+- **Socket.io** (temps réel)
+- **Three.js/React Three Fiber** (3D)
+
+---
+
+## ⚙️ Installation
+
+### Prérequis
+
+- Node.js 18+
+- pnpm ou npm
+
+### Étapes
 
 ```bash
+# Depuis la racine du projet
+cd frontend-site
+
+# Installer les dépendances
+npm install
+# ou
+pnpm install
+
+# Copier le fichier d'environnement
+cp .env.example .env.local
+
+# Démarrer le serveur de développement
 npm run dev
-# or
-yarn dev
-# or
+# ou
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+---
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 📁 Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+frontend-site/
+├── app/           # Pages et routes Next.js
+├── components/    # Composants React réutilisables
+├── lib/           # Utilitaires et services
+├── hooks/         # Hooks personnalisés
+├── public/        # Images, assets statiques
+└── ...
+```
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+---
 
 ## 🧑‍💻 Contribution
 
@@ -42,6 +87,8 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 3. Committez vos changements (`git commit -m "Ajout de ma fonctionnalité"`)
 4. Poussez la branche (`git push origin feature/ma-fonctionnalite`)
 5. Ouvrez une Pull Request
+
+---
 
 ## 📄 Licence
 

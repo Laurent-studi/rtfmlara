@@ -1,11 +1,86 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# API RTFM – Backend Laravel
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Bienvenue dans le backend de la plateforme **RTFM - Quiz & Apprentissage Interactif**.  
+Ce projet gère toute la logique métier, l’authentification, la gestion des quiz, des utilisateurs, des tournois et la communication en temps réel via WebSockets.
+
+![Laravel](https://img.shields.io/badge/Laravel-12.x-FF2D20?style=for-the-badge&logo=laravel&logoColor=white)
+![PHP](https://img.shields.io/badge/PHP-8.3+-777BB4?style=for-the-badge&logo=php&logoColor=white)
+![MySQL](https://img.shields.io/badge/MySQL-5.7+-4479A1?style=for-the-badge&logo=mysql&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
+
+---
+
+## 🚀 Fonctionnalités principales
+
+- **API RESTful** pour toutes les fonctionnalités de la plateforme
+- **Authentification sécurisée** (Sanctum)
+- **Gestion des quiz, utilisateurs, tournois, badges, statistiques**
+- **WebSockets** pour le temps réel (quiz live, notifications, etc.)
+- **Export PDF** (DomPDF)
+- **Documentation automatique** (Scribe)
+
+---
+
+## 🛠️ Technologies
+
+- **Laravel 12**
+- **PHP 8.3+**
+- **MySQL/MariaDB**
+- **Sanctum**
+- **WebSockets**
+- **DomPDF**
+- **Scribe**
+
+---
+
+## ⚙️ Installation
+
+### Prérequis
+
+- PHP 8.3+
+- Composer 2+
+- MySQL/MariaDB 10.5+
+
+### Étapes
+
+```bash
+# Cloner le dépôt (depuis la racine du projet)
+git clone https://github.com/Laurent-studi/rtfmlara.git
+cd rtfmlara/api
+
+# Installer les dépendances
+composer install
+
+# Copier le fichier d'environnement
+cp .env.example .env
+
+# Générer la clé d'application
+php artisan key:generate
+
+# Configurer la base de données dans .env
+
+# Lancer les migrations et seeders
+php artisan migrate --seed
+
+# Démarrer le serveur de développement
+php artisan serve
+```
+
+---
+
+## 📁 Structure
+
+```
+api/
+├── app/
+│   ├── Http/Controllers/Api/   # Contrôleurs API
+│   ├── Models/                 # Modèles Eloquent
+│   ├── Services/               # Logique métier
+│   └── ...
+├── routes/                     # Routes API
+├── database/                   # Migrations, seeders, factories
+└── ...
+```
 
 ## About Laravel
 
@@ -59,3 +134,19 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+
+## 🧑‍💻 Contribution
+
+1. Forkez le projet
+2. Créez une branche (`git checkout -b feature/ma-fonctionnalite`)
+3. Committez vos changements (`git commit -m "Ajout de ma fonctionnalité"`)
+4. Poussez la branche (`git push origin feature/ma-fonctionnalite`)
+5. Ouvrez une Pull Request
+
+## 📄 Licence
+
+Ce projet est sous licence MIT.
+
+---
+
+Développé avec ❤️ par Laurent

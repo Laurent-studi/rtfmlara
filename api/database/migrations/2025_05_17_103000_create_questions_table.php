@@ -17,6 +17,7 @@ return new class extends Migration
             $table->text('question_text');
             $table->integer('points')->default(3000);
             $table->integer('order_index')->nullable();
+            $table->boolean('multiple_answers')->default(false);
             $table->timestamps();
         });
     }

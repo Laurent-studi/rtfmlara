@@ -13,10 +13,15 @@ return new class extends Migration
     {
         Schema::create('quiz_sessions', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('quiz_id')->nullable()->constrained()->onDelete('cascade');
-            $table->timestamp('started_at')->useCurrent();
-            $table->timestamp('ended_at')->nullable();
-            $table->enum('status', ['waiting', 'active', 'finished'])->default('waiting');
+            $table->foreignId('quiz_id')->nullable()->constrained()->onDelete('set null');
+            $table->foreignId('presenter_id')->nullable()->constrained('users')->onDelete('set null');
+            $table->dateTime('started_at')->nullable();
+            $table->dateTime('ended_at')->nullable();
+            $table->enum('status', ['pending', 'active', 'paused', 'completed', 'cancelled'])->default('pending');
+            $table->string('join_code', 6)->nullable();
+            $table->integer('current_question_index')->default(0);
+            $table->boolean('is_presentation_mode')->default(false);
+            $table->json('session_settings')->nullable();
             $table->timestamps();
         });
     }

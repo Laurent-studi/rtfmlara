@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $question_text
  * @property int $points
  * @property int|null $order_index
+ * @property bool $multiple_answers
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  * 
@@ -35,14 +36,16 @@ class Question extends Model
 	protected $casts = [
 		'quiz_id' => 'int',
 		'points' => 'int',
-		'order_index' => 'int'
+		'order_index' => 'int',
+		'multiple_answers' => 'bool'
 	];
 
 	protected $fillable = [
 		'quiz_id',
 		'question_text',
 		'points',
-		'order_index'
+		'order_index',
+		'multiple_answers'
 	];
 
 	public function quiz()

@@ -1,26 +1,34 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import AppProvider from "../providers/AppProvider";
+import { ThemeProvider } from '@/app/profile/settings/page';
 
-const inter = Inter({ subsets: ["latin"] });
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
 
 export const metadata: Metadata = {
-  title: "RTFM Quiz App",
-  description: "Application de quiz interactive",
+  title: "Rtfm2Win ",
+  description: "Quizz de RTFM2WIN",
 };
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <html lang="fr">
-      <body className={inter.className}>
-        <AppProvider>
+      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+        <ThemeProvider>
           {children}
-        </AppProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

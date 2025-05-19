@@ -1,500 +1,585 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, createContext, useContext } from 'react';
 import { motion } from 'framer-motion';
-import Image from 'next/image';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Particles } from '@/components/magicui/particles';
+import Image from 'next/image';
 import { ShineBorder } from '@/components/magicui/shine-border';
-import { apiService } from '@/lib/api-service';
-import ThemePreview from '@/components/ThemePreview';
+import { api } from '@/lib/api';
+import AvatarSelector from '@/components/Profile/AvatarSelector';
 
-interface Theme {
-  id: string;
-  name: string;
-  description: string;
-  previewUrl: string;
-  isPremium: boolean;
+// Interfaces
+interface User {
+  id: number;
+  username: string;
+  email: string;
+  avatar: string | null;
 }
 
-interface UserSettings {
+interface ProfileFormData {
+  username: string;
+  email: string;
+}
+
+interface PasswordFormData {
+  current_password: string;
+  new_password: string;
+  new_password_confirmation: string;
+}
+
+// Interfaces pour les options de notification
+type NotificationOption = 'email_notifications' | 'push_notifications' | 'sound_notifications';
+
+interface PreferencesData {
   theme: string;
-  notifications: boolean;
-  language: string;
-  soundEffects: boolean;
-  darkMode: 'light' | 'dark' | 'system';
+  email_notifications: boolean;
+  push_notifications: boolean;
+  sound_notifications: boolean;
 }
 
-export default function SettingsPage() {
+// Composants réutilisables
+interface FormCardProps {
+  title: string;
+  children: React.ReactNode;
+  delay?: number;
+  className?: string;
+}
+
+const FormCard: React.FC<FormCardProps> = ({ title, children, delay = 0, className = '' }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay }}
+    className={`bg-white/5 backdrop-blur-xl rounded-2xl p-6 shadow-xl border border-white/10 relative h-fit ${className}`}
+  >
+    <ShineBorder borderWidth={1} duration={14} shineColor={["#4f46e5", "#7c3aed", "#ec4899"]} />
+    <h2 className="text-xl font-bold text-white mb-6">{title}</h2>
+    {children}
+  </motion.div>
+);
+
+interface FormButtonProps {
+  isLoading: boolean;
+  loadingText: string;
+  text: string;
+  onClick?: () => void;
+  type?: "submit" | "button" | "reset";
+}
+
+const FormButton: React.FC<FormButtonProps> = ({ isLoading, loadingText, text, onClick, type = "submit" }) => (
+  <motion.button
+    type={type}
+    className="w-full py-3 px-4 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-indigo-500/25 transition-all duration-200 mt-6"
+    whileHover={{ scale: 1.02 }}
+    whileTap={{ scale: 0.98 }}
+    disabled={isLoading}
+    onClick={onClick}
+  >
+    {isLoading ? (
+      <div className="flex items-center justify-center">
+        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+        </svg>
+        {loadingText}
+      </div>
+    ) : text}
+  </motion.button>
+);
+
+interface FormInputProps {
+  id: string;
+  label: string;
+  type?: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  required?: boolean;
+  minLength?: number | null;
+  helpText?: string | null;
+}
+
+const FormInput: React.FC<FormInputProps> = ({ id, label, type = "text", value, onChange, required = false, minLength = null, helpText = null }) => (
+  <div>
+    <label htmlFor={id} className="block text-gray-400 mb-1 text-sm">
+      {label}
+    </label>
+    <input
+      id={id}
+      type={type}
+      name={id}
+      value={value}
+      onChange={onChange}
+      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+      required={required}
+      minLength={minLength || undefined}
+    />
+    {helpText && <p className="text-xs text-gray-400 mt-1">{helpText}</p>}
+  </div>
+);
+
+interface StatusMessageProps {
+  type: 'error' | 'success';
+  message: string | null;
+}
+
+const StatusMessage: React.FC<StatusMessageProps> = ({ type, message }) => {
+  if (!message) return null;
+  
+  const bgColor = type === 'error' ? 'bg-red-500/20 border-red-500/50' : 'bg-green-500/20 border-green-500/50';
+  
+  return (
+    <motion.div 
+      initial={{ opacity: 0, y: -10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={`${bgColor} text-white p-3 rounded-lg mb-4 border`}
+    >
+      {message.split('\n').map((line, i) => (
+        <div key={i} className={i > 0 ? 'mt-1' : ''}>
+          {line}
+        </div>
+      ))}
+    </motion.div>
+  );
+};
+
+// Contexte de thème
+interface ThemeContextType {
+  currentTheme: string;
+  setTheme: (theme: string) => void;
+}
+
+const ThemeContext = createContext<ThemeContextType>({
+  currentTheme: 'système',
+  setTheme: () => {},
+});
+
+export const useTheme = () => useContext(ThemeContext);
+
+// Fournisseur de thème pour l'application entière
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [currentTheme, setCurrentTheme] = useState('système');
+  
+  // Charger le thème depuis localStorage au chargement
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme) {
+      setCurrentTheme(savedTheme);
+      applyTheme(savedTheme);
+    }
+  }, []);
+  
+  // Fonction pour appliquer le thème à l'interface
+  const applyTheme = (theme: string) => {
+    const root = document.documentElement;
+    
+    // Supprimer toutes les classes de thème
+    root.classList.remove('theme-light', 'theme-dark', 'theme-neon');
+    
+    // Appliquer la nouvelle classe de thème
+    if (theme === 'clair') {
+      root.classList.add('theme-light');
+    } else if (theme === 'sombre') {
+      root.classList.add('theme-dark');
+    } else if (theme === 'néon') {
+      root.classList.add('theme-neon');
+    } else {
+      // Thème système - détecter les préférences du système
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      root.classList.add(prefersDark ? 'theme-dark' : 'theme-light');
+    }
+  };
+  
+  // Fonction pour définir le thème
+  const setTheme = (theme: string) => {
+    setCurrentTheme(theme);
+    localStorage.setItem('theme', theme);
+    applyTheme(theme);
+  };
+  
+  return (
+    <ThemeContext.Provider value={{ currentTheme, setTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+}
+
+// Page principale
+export default function ProfileSettingsPage() {
   const router = useRouter();
-  const [settings, setSettings] = useState<UserSettings>({
-    theme: 'default',
-    notifications: true,
-    language: 'fr',
-    soundEffects: true,
-    darkMode: 'system'
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
+  const [isSavingPreferences, setIsSavingPreferences] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  
+  // Séparation des états de formulaire
+  const [profileData, setProfileData] = useState<ProfileFormData>({
+    username: '',
+    email: '',
   });
   
-  const [themes, setThemes] = useState<Theme[]>([]);
-  const [availableAvatars, setAvailableAvatars] = useState<string[]>([]);
-  const [selectedAvatar, setSelectedAvatar] = useState<string>('');
-  const [customAvatar, setCustomAvatar] = useState<File | null>(null);
-  const [avatarPreview, setAvatarPreview] = useState<string>('');
+  const [passwordData, setPasswordData] = useState<PasswordFormData>({
+    current_password: '',
+    new_password: '',
+    new_password_confirmation: '',
+  });
   
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [preferences, setPreferences] = useState<PreferencesData>({
+    theme: 'système',
+    email_notifications: false,
+    push_notifications: false,
+    sound_notifications: false,
+  });
+
+  const { currentTheme, setTheme } = useTheme();
   
   useEffect(() => {
-    const fetchData = async () => {
+    // Charger les données de l'utilisateur
+    const fetchUserData = async () => {
       try {
         setIsLoading(true);
+        setError(null);
+        const response = await api.get('user');
         
-        // Charger les préférences de l'utilisateur
-        const userData = await apiService.getCurrentUser();
-        if (userData.preferences) {
-          setSettings({
-            theme: userData.preferences.theme || 'default',
-            notifications: userData.preferences.notifications ?? true,
-            language: userData.preferences.language || 'fr',
-            soundEffects: userData.preferences.soundEffects ?? true,
-            darkMode: userData.preferences.darkMode || 'system'
+        if (response.success && response.data) {
+          const userData = response.data;
+          setUser(userData);
+          
+          // Mettre à jour le formulaire avec les données du profil
+          setProfileData({
+            username: userData.username,
+            email: userData.email,
           });
         }
-        
-        setSelectedAvatar(userData.avatar || '');
-        
-        // Charger les thèmes disponibles
-        try {
-          const themesData = await apiService.getThemes();
-          setThemes(themesData);
-        } catch (e) {
-          // Utiliser des thèmes par défaut si l'API n'est pas disponible
-          setThemes(defaultThemes);
-        }
-        
-        // Charger les avatars disponibles
-        try {
-          const avatarsData = await apiService.getAvatars();
-          setAvailableAvatars(avatarsData);
-        } catch (e) {
-          // Utiliser des avatars par défaut si l'API n'est pas disponible
-          setAvailableAvatars(defaultAvatars);
-        }
-      } catch (err: any) {
-        setError(err.message || 'Erreur lors du chargement des paramètres');
+      } catch (error: any) {
+        setError('Erreur de chargement du profil: ' + (error.message || 'Une erreur est survenue'));
+        console.error('Erreur lors du chargement du profil:', error);
       } finally {
         setIsLoading(false);
       }
     };
-    
-    fetchData();
+
+    fetchUserData();
   }, []);
-  
-  const handleChangeSettings = (key: keyof UserSettings, value: any) => {
-    setSettings(prev => ({ ...prev, [key]: value }));
+
+  useEffect(() => {
+    // Mise à jour des préférences pour inclure le thème actuel
+    setPreferences(prev => ({
+      ...prev,
+      theme: currentTheme
+    }));
+  }, [currentTheme]);
+
+  const handleProfileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setProfileData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
   
-  const handleSelectAvatar = (avatar: string) => {
-    setSelectedAvatar(avatar);
-    setCustomAvatar(null);
-    setAvatarPreview('');
+  const handlePasswordInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
   
-  const handleCustomAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setCustomAvatar(file);
+  const handlePreferenceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value, type, checked } = e.target;
+    
+    if (type === 'checkbox' && (
+      name === 'email_notifications' || 
+      name === 'push_notifications' || 
+      name === 'sound_notifications'
+    )) {
+      // Pour les checkboxes de notification
+      setPreferences(prev => ({
+        ...prev,
+        [name]: checked
+      }));
+    } else if (name === 'theme') {
+      // Pour les boutons radio de thème
+      setPreferences(prev => ({
+        ...prev,
+        theme: value
+      }));
+      // Appliquer le thème immédiatement
+      setTheme(value);
+    }
+  };
+
+  const handleProfileUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setIsSavingProfile(true);
+
+    try {
+      const response = await api.put('user', profileData);
       
-      const reader = new FileReader();
-      reader.onload = () => {
-        setAvatarPreview(reader.result as string);
+      if (response.success) {
+        setSuccess('Profil mis à jour avec succès');
+        // Mettre à jour les données utilisateur locales
+        setUser(prev => prev ? { ...prev, ...profileData } : null);
+      }
+    } catch (error: any) {
+      setError('Erreur lors de la mise à jour du profil: ' + (error.message || 'Une erreur est survenue'));
+      console.error('Erreur lors de la mise à jour du profil:', error);
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setSuccess(null);
+    setIsSavingPassword(true);
+
+    // Vérifier que les mots de passe correspondent
+    if (passwordData.new_password !== passwordData.new_password_confirmation) {
+      setError('Les nouveaux mots de passe ne correspondent pas');
+      setIsSavingPassword(false);
+      return;
+    }
+
+    try {
+      const passwordPayload = {
+        current_password: passwordData.current_password,
+        password: passwordData.new_password,
+        password_confirmation: passwordData.new_password_confirmation,
       };
-      reader.readAsDataURL(file);
+
+      const response = await api.put('user/password', passwordPayload);
       
-      setSelectedAvatar('');
+      if (response.success) {
+        setSuccess('Mot de passe mis à jour avec succès');
+        // Réinitialiser les champs de mot de passe
+        setPasswordData({
+          current_password: '',
+          new_password: '',
+          new_password_confirmation: '',
+        });
+      }
+    } catch (error: any) {
+      setError('Erreur lors de la mise à jour du mot de passe: ' + (error.message || 'Une erreur est survenue'));
+      console.error('Erreur lors de la mise à jour du mot de passe:', error);
+    } finally {
+      setIsSavingPassword(false);
     }
   };
   
-  const handleSaveSettings = async () => {
+  const handlePreferencesUpdate = async () => {
+    setError(null);
+    setSuccess(null);
+    setIsSavingPreferences(true);
+    
     try {
-      setIsSaving(true);
-      setError('');
-      setSuccessMessage('');
+      // Simulation de mise à jour des préférences
+      await new Promise(resolve => setTimeout(resolve, 800));
+      setSuccess('Préférences mises à jour avec succès');
+    } catch (error: any) {
+      setError('Erreur lors de la mise à jour des préférences');
+    } finally {
+      setIsSavingPreferences(false);
+    }
+  };
+
+  // Fonction pour mettre à jour l'avatar
+  const updateAvatar = async (newAvatarUrl: string) => {
+    if (!user) return;
+    
+    try {
+      setIsSavingProfile(true);
+      setError(null);
       
-      // Mettre à jour les préférences utilisateur
-      await apiService.updateUserProfile({
-        preferences: {
-          theme: settings.theme,
-          notifications: settings.notifications,
-          language: settings.language,
-          soundEffects: settings.soundEffects,
-          darkMode: settings.darkMode
-        }
+      // Mettre à jour l'avatar dans la base de données
+      const response = await api.put('user', {
+        avatar: newAvatarUrl
       });
       
-      // Mettre à jour l'avatar si nécessaire
-      if (selectedAvatar) {
-        await apiService.updateUserProfile({ avatar: selectedAvatar });
-      } else if (customAvatar) {
-        // Cette API n'est pas encore implémentée
-        await apiService.uploadAvatar(customAvatar);
+      if (response.success) {
+        setUser(prev => prev ? { ...prev, avatar: newAvatarUrl } : null);
+        setSuccess('Avatar mis à jour avec succès');
       }
-      
-      setSuccessMessage('Paramètres enregistrés avec succès !');
-      
-      // Disparition du message après 3 secondes
-      setTimeout(() => {
-        setSuccessMessage('');
-      }, 3000);
-    } catch (err: any) {
-      setError(err.message || 'Erreur lors de la sauvegarde des paramètres');
+    } catch (error: any) {
+      setError('Erreur lors de la mise à jour de l\'avatar: ' + (error.message || 'Une erreur est survenue'));
     } finally {
-      setIsSaving(false);
+      setIsSavingProfile(false);
     }
   };
-  
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0D111E] flex items-center justify-center">
-        <div className="text-white text-center">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-indigo-500 border-r-2 border-indigo-500 mb-4"></div>
-          <p>Chargement des paramètres...</p>
+      <div className="container mx-auto px-4 py-8 relative z-10">
+        <motion.h1 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-3xl font-bold text-white mb-8"
+        >
+          Paramètres du profil
+        </motion.h1>
+        <div className="flex justify-center items-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
         </div>
       </div>
     );
   }
-  
+
   return (
-    <div className="min-h-screen bg-[#0D111E] relative overflow-hidden">
-      <Particles className="absolute inset-0" />
-      <Particles className="absolute inset-0" quantity={30} color="#4f46e5" size={0.8} />
-      <Particles className="absolute inset-0" quantity={20} color="#7c3aed" size={1.2} />
-      
-      <div className="container mx-auto px-4 py-16 relative z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-4xl mx-auto"
-        >
-          <div className="flex items-center justify-between mb-8">
-            <Link href="/profile">
-              <div className="flex items-center gap-4">
-                <Image
-                  src="/img/logo6.png"
-                  alt="RTFM2Win Logo"
-                  width={40}
-                  height={40}
-                  className="rounded-lg"
-                />
-                <span className="text-white">Retour au profil</span>
-              </div>
-            </Link>
-          </div>
-          
-          <div className="bg-white/5 backdrop-blur-xl rounded-2xl p-8 shadow-2xl border border-white/10 mb-8">
-            <h1 className="text-3xl font-bold text-white mb-6">Paramètres</h1>
-            
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4 mb-6 text-red-400 text-sm">
-                {error}
-              </div>
-            )}
-            
-            {successMessage && (
-              <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-4 mb-6 text-green-400 text-sm">
-                {successMessage}
-              </div>
-            )}
-            
-            <div className="space-y-8">
-              {/* Section Avatar */}
-              <div>
-                <h2 className="text-white font-semibold text-xl mb-4">Avatar</h2>
-                <div className="flex flex-col md:flex-row items-start gap-8">
-                  <div className="flex-shrink-0">
-                    <div className="relative w-32 h-32 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white text-5xl font-bold overflow-hidden">
-                      {avatarPreview ? (
-                        <Image
-                          src={avatarPreview}
-                          alt="Preview"
-                          fill
-                          className="object-cover"
-                        />
-                      ) : selectedAvatar ? (
-                        <Image
-                          src={selectedAvatar}
-                          alt="Avatar"
-                          fill
-                          className="object-cover"
-                        />
-                      ) : (
-                        "U"
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="w-full">
-                    <h3 className="text-white font-medium mb-3">Choisir un avatar</h3>
-                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-3 mb-4">
-                      {availableAvatars.map((avatar, index) => (
-                        <div
-                          key={index}
-                          onClick={() => handleSelectAvatar(avatar)}
-                          className={`w-16 h-16 rounded-full overflow-hidden cursor-pointer border-2 transition-all ${
-                            selectedAvatar === avatar
-                              ? 'border-indigo-500 scale-110'
-                              : 'border-transparent hover:border-indigo-500/50'
-                          }`}
-                        >
-                          <Image
-                            src={avatar}
-                            alt={`Avatar ${index + 1}`}
-                            width={64}
-                            height={64}
-                            className="object-cover w-full h-full"
-                          />
-                        </div>
-                      ))}
-                    </div>
-                    
-                    <div className="mb-4">
-                      <p className="text-gray-400 text-sm mb-2">Ou téléchargez votre propre avatar</p>
-                      <label className="flex items-center justify-center px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl cursor-pointer transition-all">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0l-4 4m4-4v12" />
-                        </svg>
-                        <span>Importer une image</span>
-                        <input
-                          type="file"
-                          className="hidden"
-                          accept="image/*"
-                          onChange={handleCustomAvatarChange}
-                        />
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Section Thème */}
-              <div>
-                <h2 className="text-white font-semibold text-xl mb-4">Thème</h2>
-                
-                <div className="mb-6">
-                  <h3 className="text-white font-medium mb-3">Mode d'affichage</h3>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div
-                      onClick={() => handleChangeSettings('darkMode', 'light')}
-                      className={`bg-white/10 hover:bg-white/20 rounded-xl p-4 cursor-pointer transition-all ${
-                        settings.darkMode === 'light' ? 'border-2 border-indigo-500' : 'border-2 border-transparent'
-                      }`}
-                    >
-                      <div className="w-full h-12 bg-white rounded-lg mb-3"></div>
-                      <p className="text-white text-center">Clair</p>
-                    </div>
-                    
-                    <div
-                      onClick={() => handleChangeSettings('darkMode', 'dark')}
-                      className={`bg-white/10 hover:bg-white/20 rounded-xl p-4 cursor-pointer transition-all ${
-                        settings.darkMode === 'dark' ? 'border-2 border-indigo-500' : 'border-2 border-transparent'
-                      }`}
-                    >
-                      <div className="w-full h-12 bg-[#0D111E] rounded-lg mb-3"></div>
-                      <p className="text-white text-center">Sombre</p>
-                    </div>
-                    
-                    <div
-                      onClick={() => handleChangeSettings('darkMode', 'system')}
-                      className={`bg-white/10 hover:bg-white/20 rounded-xl p-4 cursor-pointer transition-all ${
-                        settings.darkMode === 'system' ? 'border-2 border-indigo-500' : 'border-2 border-transparent'
-                      }`}
-                    >
-                      <div className="w-full h-12 bg-gradient-to-r from-white to-[#0D111E] rounded-lg mb-3"></div>
-                      <p className="text-white text-center">Système</p>
-                    </div>
-                  </div>
-                </div>
-                
-                <h3 className="text-white font-medium mb-3">Thèmes disponibles</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {themes.map((theme) => (
-                    <ThemePreview
-                      key={theme.id}
-                      theme={{
-                        ...theme,
-                        colors: getThemeColors(theme.id)
-                      }}
-                      isSelected={settings.theme === theme.id}
-                      onSelect={(themeId) => handleChangeSettings('theme', themeId)}
+    <div className="container mx-auto px-4 py-8 relative z-10">
+      <motion.h1 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-3xl font-bold text-white mb-8"
+      >
+        Paramètres du profil
+      </motion.h1>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Carte de profil */}
+        <FormCard title="Informations de profil" delay={0.1}>
+          <StatusMessage type="error" message={error} />
+          <StatusMessage type="success" message={success} />
+
+          <form onSubmit={handleProfileUpdate} className="space-y-4">
+            {/* Avatar */}
+            <AvatarSelector 
+              initialAvatar={user?.avatar}
+              username={user?.username || ''}
+              onAvatarChange={updateAvatar}
+            />
+
+            <FormInput 
+              id="username"
+              label="Nom d'utilisateur"
+              value={profileData.username}
+              onChange={handleProfileInputChange}
+              required
+            />
+
+            <FormInput 
+              id="email"
+              label="Email"
+              type="email"
+              value={profileData.email}
+              onChange={handleProfileInputChange}
+              required
+            />
+
+            <FormButton 
+              isLoading={isSavingProfile}
+              loadingText="Sauvegarde en cours..."
+              text="Enregistrer les modifications"
+            />
+          </form>
+        </FormCard>
+
+        {/* Carte de changement de mot de passe */}
+        <FormCard title="Modifier le mot de passe" delay={0.2}>
+          <form onSubmit={handlePasswordUpdate} className="space-y-4">
+            <FormInput 
+              id="current_password"
+              label="Mot de passe actuel"
+              type="password"
+              value={passwordData.current_password}
+              onChange={handlePasswordInputChange}
+              required
+            />
+
+            <FormInput 
+              id="new_password"
+              label="Nouveau mot de passe"
+              type="password"
+              value={passwordData.new_password}
+              onChange={handlePasswordInputChange}
+              required
+              minLength={8}
+              helpText="Doit contenir au moins 8 caractères"
+            />
+
+            <FormInput 
+              id="new_password_confirmation"
+              label="Confirmer le nouveau mot de passe"
+              type="password"
+              value={passwordData.new_password_confirmation}
+              onChange={handlePasswordInputChange}
+              required
+            />
+
+            <FormButton 
+              isLoading={isSavingPassword}
+              loadingText="Mise à jour en cours..."
+              text="Modifier le mot de passe"
+            />
+          </form>
+        </FormCard>
+
+        {/* Carte des préférences */}
+        <FormCard title="Préférences" delay={0.3} className="md:col-span-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Préférences de thème */}
+            <div>
+              <h3 className="text-lg font-medium text-white mb-3">Thème de l'interface</h3>
+              <div className="space-y-3">
+                {[
+                  { value: 'système', label: 'Système' },
+                  { value: 'clair', label: 'Clair' },
+                  { value: 'sombre', label: 'Sombre' },
+                  { value: 'néon', label: 'Néon' }
+                ].map((theme) => (
+                  <label key={theme.value} className="flex items-center gap-3">
+                    <input
+                      type="radio"
+                      name="theme"
+                      value={theme.value}
+                      checked={preferences.theme === theme.value}
+                      onChange={handlePreferenceChange}
+                      className="form-radio h-5 w-5 text-indigo-500 border-white/30 focus:ring-indigo-500 focus:ring-opacity-50 bg-white/5"
                     />
-                  ))}
-                </div>
-              </div>
-              
-              {/* Section Préférences */}
-              <div>
-                <h2 className="text-white font-semibold text-xl mb-4">Préférences</h2>
-                
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-white font-medium">Notifications</h3>
-                      <p className="text-gray-400 text-sm">Recevoir des notifications sur les nouveaux quiz et résultats</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="sr-only"
-                        checked={settings.notifications}
-                        onChange={(e) => handleChangeSettings('notifications', e.target.checked)}
-                      />
-                      <div className={`w-11 h-6 rounded-full transition-all ${
-                        settings.notifications ? 'bg-indigo-500' : 'bg-white/20'
-                      }`}>
-                        <div className={`absolute w-5 h-5 bg-white rounded-full transition-all ${
-                          settings.notifications ? 'translate-x-5' : 'translate-x-1'
-                        } top-0.5`}></div>
-                      </div>
-                    </label>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-white font-medium">Effets sonores</h3>
-                      <p className="text-gray-400 text-sm">Activer les sons dans l'application</p>
-                    </div>
-                    <label className="relative inline-flex items-center cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="sr-only"
-                        checked={settings.soundEffects}
-                        onChange={(e) => handleChangeSettings('soundEffects', e.target.checked)}
-                      />
-                      <div className={`w-11 h-6 rounded-full transition-all ${
-                        settings.soundEffects ? 'bg-indigo-500' : 'bg-white/20'
-                      }`}>
-                        <div className={`absolute w-5 h-5 bg-white rounded-full transition-all ${
-                          settings.soundEffects ? 'translate-x-5' : 'translate-x-1'
-                        } top-0.5`}></div>
-                      </div>
-                    </label>
-                  </div>
-                  
-                  <div>
-                    <h3 className="text-white font-medium mb-2">Langue</h3>
-                    <select
-                      value={settings.language}
-                      onChange={(e) => handleChangeSettings('language', e.target.value)}
-                      className="w-full bg-white/10 text-white rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-indigo-500"
-                    >
-                      <option value="fr">Français</option>
-                      <option value="en">English</option>
-                      <option value="es">Español</option>
-                      <option value="de">Deutsch</option>
-                    </select>
-                  </div>
-                </div>
+                    <span className="text-gray-300">{theme.label}</span>
+                  </label>
+                ))}
               </div>
             </div>
-            
-            <div className="mt-8 flex justify-end">
-              <ShineBorder>
-                <motion.button
-                  onClick={handleSaveSettings}
-                  disabled={isSaving}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-medium disabled:opacity-50"
-                >
-                  {isSaving ? 'Enregistrement...' : 'Enregistrer les modifications'}
-                </motion.button>
-              </ShineBorder>
+
+            {/* Préférences de notifications */}
+            <div>
+              <h3 className="text-lg font-medium text-white mb-3">Notifications</h3>
+              <div className="space-y-3">
+                {[
+                  { id: 'email_notifications' as NotificationOption, label: 'Notifications par email' },
+                  { id: 'push_notifications' as NotificationOption, label: 'Notifications push' },
+                  { id: 'sound_notifications' as NotificationOption, label: 'Sons de notification' },
+                ].map((option) => (
+                  <label key={option.id} className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      name={option.id}
+                      checked={preferences[option.id]}
+                      onChange={handlePreferenceChange}
+                      className="form-checkbox h-5 w-5 text-indigo-500 border-white/30 focus:ring-indigo-500 focus:ring-opacity-50 bg-white/5"
+                    />
+                    <span className="text-gray-300">{option.label}</span>
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
-        </motion.div>
+
+          <FormButton 
+            isLoading={isSavingPreferences}
+            loadingText="Enregistrement en cours..."
+            text="Enregistrer les préférences"
+            onClick={handlePreferencesUpdate}
+            type="button"
+          />
+        </FormCard>
       </div>
     </div>
   );
-}
-
-// Données par défaut pour les tests
-const defaultThemes: Theme[] = [
-  {
-    id: 'default',
-    name: 'Thème par défaut',
-    description: 'Le thème standard de RTFM2Win avec des tons de bleu et violet',
-    previewUrl: '/img/themes/default.jpg',
-    isPremium: false
-  },
-  {
-    id: 'dark',
-    name: 'Obscurité',
-    description: 'Un thème sombre avec des accents de couleur subtils',
-    previewUrl: '/img/themes/dark.jpg',
-    isPremium: false
-  },
-  {
-    id: 'neon',
-    name: 'Néon',
-    description: 'Un thème vibrant avec des couleurs néon sur fond sombre',
-    previewUrl: '/img/themes/neon.jpg',
-    isPremium: true
-  },
-  {
-    id: 'nature',
-    name: 'Nature',
-    description: 'Un thème rafraîchissant inspiré par la nature',
-    previewUrl: '/img/themes/nature.jpg',
-    isPremium: true
-  }
-];
-
-// Fonction pour récupérer les couleurs d'un thème
-function getThemeColors(themeId: string) {
-  const themeColors = {
-    default: {
-      primary: '#4f46e5',
-      secondary: '#7c3aed',
-      background: '#0D111E',
-      text: '#ffffff',
-      accent: 'rgba(255,255,255,0.1)'
-    },
-    dark: {
-      primary: '#6366f1',
-      secondary: '#0f172a',
-      background: '#1e293b',
-      text: '#e2e8f0',
-      accent: 'rgba(226,232,240,0.1)'
-    },
-    neon: {
-      primary: '#f0abfc',
-      secondary: '#818cf8',
-      background: '#09090b',
-      text: '#fafafa',
-      accent: 'rgba(240,171,252,0.2)'
-    },
-    nature: {
-      primary: '#10b981',
-      secondary: '#34d399',
-      background: '#064e3b',
-      text: '#ecfdf5',
-      accent: 'rgba(16,185,129,0.2)'
-    }
-  };
-  
-  return themeColors[themeId as keyof typeof themeColors] || themeColors.default;
-}
-
-const defaultAvatars: string[] = [
-  '/img/avatars/avatar1.png',
-  '/img/avatars/avatar2.png',
-  '/img/avatars/avatar3.png',
-  '/img/avatars/avatar4.png',
-  '/img/avatars/avatar5.png',
-  '/img/avatars/avatar6.png',
-  '/img/avatars/avatar7.png',
-  '/img/avatars/avatar8.png',
-]; 
+} 

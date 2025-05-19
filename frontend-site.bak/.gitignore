@@ -1,0 +1,13 @@
+# Fichiers et dossiers à ignorer dans le contexte du dépôt principal
+
+# dependencies
+/node_modules
+
+# next.js
+/.next/
+
+# env files
+.env*
+
+# TypeScript
+*.tsbuildinfo 

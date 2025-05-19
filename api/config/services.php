@@ -46,5 +46,10 @@ return [
         'key' => env('FCM_SERVER_KEY'),
         'sender_id' => env('FCM_SENDER_ID'),
     ],
+    'github' => [
+    'client_id' => env('GITHUB_CLIENT_ID'),
+    'client_secret' => env('GITHUB_CLIENT_SECRET'),
+    'redirect' => 'http://example.com/callback-url',
+],
 
 ];

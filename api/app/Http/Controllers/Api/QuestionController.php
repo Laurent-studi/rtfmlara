@@ -53,6 +53,7 @@ class QuestionController extends Controller
             'question_text' => 'required|string',
             'points' => 'required|integer|min:1',
             'order_index' => 'nullable|integer|min:0',
+            'multiple_answers' => 'nullable|boolean',
             'answers' => 'required|array|min:2',
             'answers.*.answer_text' => 'required|string',
             'answers.*.is_correct' => 'required|boolean',
@@ -78,10 +79,11 @@ class QuestionController extends Controller
 
         // Vérifier qu'au moins une réponse est correcte
         $hasCorrectAnswer = false;
+        $correctAnswersCount = 0;
         foreach ($request->answers as $answer) {
             if ($answer['is_correct']) {
                 $hasCorrectAnswer = true;
-                break;
+                $correctAnswersCount++;
             }
         }
 
@@ -89,6 +91,15 @@ class QuestionController extends Controller
             return response()->json([
                 'status' => 'error',
                 'message' => 'Au moins une réponse doit être correcte'
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        // Vérifier si la question autorise plusieurs réponses correctes
+        $multipleAnswers = $request->has('multiple_answers') ? $request->multiple_answers : false;
+        if (!$multipleAnswers && $correctAnswersCount > 1) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Cette question n\'autorise qu\'une seule réponse correcte'
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
@@ -102,7 +113,7 @@ class QuestionController extends Controller
         try {
             // Créer la question
             $question = Question::create($request->only([
-                'quiz_id', 'question_text', 'points', 'order_index'
+                'quiz_id', 'question_text', 'points', 'order_index', 'multiple_answers'
             ]));
 
             // Créer les réponses
@@ -182,6 +193,7 @@ class QuestionController extends Controller
             'question_text' => 'sometimes|required|string',
             'points' => 'sometimes|required|integer|min:1',
             'order_index' => 'nullable|integer|min:0',
+            'multiple_answers' => 'nullable|boolean',
             'answers' => 'sometimes|required|array|min:2',
             'answers.*.id' => 'nullable|integer|exists:answers,id',
             'answers.*.answer_text' => 'required|string',
@@ -200,10 +212,11 @@ class QuestionController extends Controller
         // Si des réponses sont fournies, vérifier qu'au moins une est correcte
         if ($request->has('answers')) {
             $hasCorrectAnswer = false;
+            $correctAnswersCount = 0;
             foreach ($request->answers as $answer) {
                 if ($answer['is_correct']) {
                     $hasCorrectAnswer = true;
-                    break;
+                    $correctAnswersCount++;
                 }
             }
 
@@ -213,13 +226,25 @@ class QuestionController extends Controller
                     'message' => 'Au moins une réponse doit être correcte'
                 ], Response::HTTP_UNPROCESSABLE_ENTITY);
             }
+
+            // Vérifier si la question autorise plusieurs réponses correctes
+            $multipleAnswers = $request->has('multiple_answers') 
+                ? $request->multiple_answers 
+                : $question->multiple_answers;
+                
+            if (!$multipleAnswers && $correctAnswersCount > 1) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => 'Cette question n\'autorise qu\'une seule réponse correcte'
+                ], Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
         }
 
         DB::beginTransaction();
         try {
             // Mettre à jour la question
             $question->update($request->only([
-                'quiz_id', 'question_text', 'points', 'order_index'
+                'quiz_id', 'question_text', 'points', 'order_index', 'multiple_answers'
             ]));
 
             // Mettre à jour ou créer les réponses si fournies

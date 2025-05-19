@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\MorphToMany;
 
 /**
  * Class Trophy
@@ -70,7 +71,7 @@ class Trophy extends Achievement
 	/**
 	 * Get the users who earned this trophy.
 	 */
-	public function users()
+	public function users(): MorphToMany
 	{
 		return $this->morphToMany(User::class, 'achievable', 'user_achievements')
 			->withPivot('earned_at', 'data');

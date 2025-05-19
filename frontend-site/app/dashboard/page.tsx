@@ -1,111 +1,91 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Particles } from '@/components/magicui/particles';
 import { ShineBorder } from '@/components/magicui/shine-border';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { api } from '@/lib/api';
 
-// Types pour les données du tableau de bord
-interface QuizStats {
-  totalQuizzes: number;
-  averageScore: number;
-  quizzesCompleted: number;
-  quizzesCreated: number;
+interface User {
+  id: number;
+  username: string;
+  email: string;
+  avatar: string | null;
+  trophies_count?: number;
+  achievement_points?: number;
 }
 
-interface RecentQuiz {
-  id: string;
-  title: string;
-  date: string;
-  score: number;
-  totalQuestions: number;
-}
-
-interface TopPlayer {
-  id: string;
-  name: string;
-  totalScore: number;
-  quizzesPlayed: number;
-}
-
-// Composant du tableau de bord utilisateur
-export default function UserDashboard() {
+export default function DashboardPage() {
   const router = useRouter();
-  const [stats, setStats] = useState<QuizStats>({
-    totalQuizzes: 0,
-    averageScore: 0,
-    quizzesCompleted: 0,
-    quizzesCreated: 0,
-  });
-  const [recentQuizzes, setRecentQuizzes] = useState<RecentQuiz[]>([]);
-  const [topPlayers, setTopPlayers] = useState<TopPlayer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [recentQuizzes, setRecentQuizzes] = useState<any[]>([]);
+  const [recentTrophies, setRecentTrophies] = useState<any[]>([]);
 
-  // Simuler le chargement des données
   useEffect(() => {
-    const timer = setTimeout(() => {
-      // Données fictives pour l'exemple
-      setStats({
-        totalQuizzes: 15,
-        averageScore: 7.8,
-        quizzesCompleted: 12,
-        quizzesCreated: 3,
-      });
-      
-      setRecentQuizzes([
-        {
-          id: '1',
-          title: 'Quiz sur l\'histoire de France',
-          date: '2023-04-10',
-          score: 8,
-          totalQuestions: 10,
-        },
-        {
-          id: '2',
-          title: 'Quiz de géographie',
-          date: '2023-04-05',
-          score: 9,
-          totalQuestions: 10,
-        },
-        {
-          id: '3',
-          title: 'Quiz de culture générale',
-          date: '2023-03-28',
-          score: 7,
-          totalQuestions: 10,
-        },
-      ]);
-      
-      setTopPlayers([
-        { id: '1', name: 'Alice', totalScore: 2450, quizzesPlayed: 8 },
-        { id: '2', name: 'Bob', totalScore: 2180, quizzesPlayed: 7 },
-        { id: '3', name: 'Charlie', totalScore: 1950, quizzesPlayed: 6 },
-        { id: '4', name: 'David', totalScore: 1820, quizzesPlayed: 5 },
-        { id: '5', name: 'Emma', totalScore: 1750, quizzesPlayed: 5 },
-      ]);
-      
-      setIsLoading(false);
-    }, 1000);
-    
-    return () => clearTimeout(timer);
-  }, []);
+    // Vérifier si l'utilisateur est connecté
+    const token = localStorage.getItem('auth_token');
+    if (!token) {
+      router.push('/auth');
+      return;
+    }
 
-  // Animation des cartes
-  const cardVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: { opacity: 1, y: 0 },
-  };
+    // Charger les données de l'utilisateur
+    const fetchUserData = async () => {
+      try {
+        setIsLoading(true);
+        const response = await api.get('user');
+        
+        // Configurer l'utilisateur avec les données du profil
+        if (response.success && response.data) {
+          setUser(response.data);
+          
+          // Charger les quiz récents
+          try {
+            const quizzesResponse = await api.get('quizzes/recent');
+            if (quizzesResponse.success) {
+              setRecentQuizzes(quizzesResponse.data.quizzes || []);
+            }
+          } catch (error) {
+            console.error('Erreur lors du chargement des quiz récents:', error);
+          }
+          
+          // Charger les trophées récents
+          try {
+            const trophiesResponse = await api.get('achievements/recent');
+            if (trophiesResponse.success) {
+              setRecentTrophies(trophiesResponse.data.achievements || []);
+            }
+          } catch (error) {
+            console.error('Erreur lors du chargement des trophées récents:', error);
+          }
+        }
+      } catch (error: any) {
+        setError('Erreur de chargement du profil: ' + (error.message || 'Veuillez vous reconnecter'));
+        // Si l'erreur est liée à l'authentification, rediriger vers la page de connexion
+        if (error.status === 401) {
+          localStorage.removeItem('auth_token');
+          router.push('/auth');
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  // Fonction pour créer un nouveau quiz
-  const createNewQuiz = () => {
-    router.push('/quiz/create');
-  };
+    fetchUserData();
+  }, [router]);
 
-  // Fonction pour rejoindre un quiz
-  const joinQuiz = () => {
-    router.push('/quiz/join');
+  const handleLogout = async () => {
+    try {
+      await api.post('logout', {});
+      localStorage.removeItem('auth_token');
+      router.push('/auth');
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+    }
   };
 
   return (
@@ -115,176 +95,263 @@ export default function UserDashboard() {
       <Particles className="absolute inset-0" quantity={20} color="#7c3aed" size={1.2} />
       <Particles className="absolute inset-0" quantity={15} color="#ec4899" size={1.6} />
       
-      <div className="container mx-auto px-4 py-8 relative z-10">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-2">Tableau de bord</h1>
-            <p className="text-gray-400">Bienvenue sur votre espace de gestion de quiz</p>
+      {/* Header / Navigation */}
+      <header className="fixed top-0 left-0 right-0 z-50 backdrop-blur-md bg-[#0D111E]/70 border-b border-white/10">
+        <div className="container mx-auto px-4 py-3 flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/img/logo4.png"
+              alt="RTFM2Win Logo"
+              width={40}
+              height={40}
+              className="rounded-lg"
+            />
+            <span className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">
+              RTFM2Win
+            </span>
           </div>
-          <div className="mt-4 md:mt-0">
-            <div className="flex space-x-4">
-              <button
-                onClick={createNewQuiz}
-                className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-              >
-                Créer un quiz
-              </button>
-              <button
-                onClick={joinQuiz}
-                className="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
-              >
-                Rejoindre un quiz
-              </button>
-            </div>
+          
+          <div className="flex items-center gap-4">
+            {user && (
+              <>
+                <div className="hidden md:flex items-center gap-2">
+                  <div className="flex flex-col items-end">
+                    <span className="text-white font-medium">{user.username}</span>
+                    <span className="text-sm text-gray-400">{user.email}</span>
+                  </div>
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold">
+                    {user.avatar ? (
+                      <Image
+                        src={user.avatar}
+                        alt={user.username}
+                        width={40}
+                        height={40}
+                        className="rounded-full object-cover"
+                      />
+                    ) : (
+                      user.username.charAt(0).toUpperCase()
+                    )}
+                  </div>
+                </div>
+                
+                <motion.button
+                  onClick={handleLogout}
+                  className="px-3 py-2 bg-white/10 rounded-lg text-white hover:bg-white/20 transition-all duration-200"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 001 1h12a1 1 0 001-1V4a1 1 0 00-1-1H3zm1 2h10v10H4V5zm4 4a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1zm0 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" clipRule="evenodd" />
+                  </svg>
+                </motion.button>
+              </>
+            )}
           </div>
         </div>
-        
+      </header>
+
+      <div className="container mx-auto px-4 pt-24 pb-16 relative z-10">
         {isLoading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          <div className="flex justify-center items-center min-h-[60vh]">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
           </div>
-        ) : (
+        ) : error ? (
+          <div className="bg-red-500/20 border border-red-500/50 text-white p-4 rounded-lg mb-6">
+            {error}
+          </div>
+        ) : user ? (
           <>
+            {/* Bannière de bienvenue */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 shadow-2xl border border-white/10 mb-8 relative overflow-hidden"
+            >
+              <ShineBorder borderWidth={1} duration={14} shineColor={["#4f46e5", "#7c3aed", "#ec4899"]} />
+              <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+                <div>
+                  <h1 className="text-3xl font-bold text-white mb-2">
+                    Bienvenue, <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">{user.username}</span> !
+                  </h1>
+                  <p className="text-gray-300">
+                    Que souhaitez-vous faire aujourd'hui ?
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <motion.button
+                    onClick={() => router.push('/quiz/create')}
+                    className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl text-white font-medium"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    Créer un quiz
+                  </motion.button>
+                  <motion.button
+                    onClick={() => router.push('/quiz/search')}
+                    className="px-4 py-2 bg-white/10 rounded-xl text-white font-medium"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    Rejoindre un quiz
+                  </motion.button>
+                </div>
+              </div>
+            </motion.div>
+
             {/* Statistiques */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8"
+            >
+              {[
+                {
+                  title: "Quiz créés",
+                  value: "0",
+                  icon: "📊",
+                  color: "from-indigo-500 to-blue-500"
+                },
+                {
+                  title: "Trophées",
+                  value: user.trophies_count?.toString() || "0",
+                  icon: "🏆",
+                  color: "from-yellow-500 to-amber-500"
+                },
+                {
+                  title: "Points",
+                  value: user.achievement_points?.toString() || "0",
+                  icon: "⭐",
+                  color: "from-purple-500 to-pink-500"
+                }
+              ].map((stat, index) => (
+                <motion.div
+                  key={index}
+                  className="bg-white/5 backdrop-blur-md rounded-xl p-4 border border-white/10 relative overflow-hidden"
+                  whileHover={{ y: -5 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <div className="absolute -right-6 -top-6 text-5xl opacity-20">{stat.icon}</div>
+                  <h3 className="text-gray-400 font-medium mb-1">{stat.title}</h3>
+                  <p className={`text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r ${stat.color}`}>
+                    {stat.value}
+                  </p>
+                </motion.div>
+              ))}
+            </motion.div>
+
+            {/* Quiz récents et réalisations */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Quiz récents */}
               <motion.div
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
-                transition={{ delay: 0.1 }}
-                className="bg-white rounded-lg shadow-lg p-6"
-              >
-                <h3 className="text-lg font-medium text-gray-500 mb-2">Quiz totaux</h3>
-                <p className="text-3xl font-bold">{stats.totalQuizzes}</p>
-              </motion.div>
-              
-              <motion.div
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2 }}
-                className="bg-white rounded-lg shadow-lg p-6"
+                className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 shadow-xl border border-white/10 relative"
               >
-                <h3 className="text-lg font-medium text-gray-500 mb-2">Score moyen</h3>
-                <p className="text-3xl font-bold">{stats.averageScore.toFixed(1)}/10</p>
+                <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                  <span className="text-indigo-400">→</span> Quiz récents
+                </h2>
+                
+                {recentQuizzes.length === 0 ? (
+                  <p className="text-gray-400 text-center py-6">
+                    Aucun quiz récent. C'est le moment d'en créer un !
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {recentQuizzes.map((quiz) => (
+                      <motion.div
+                        key={quiz.id}
+                        className="bg-white/5 rounded-xl p-3 border border-white/10 flex justify-between items-center"
+                        whileHover={{ x: 5 }}
+                      >
+                        <div>
+                          <h3 className="text-white font-medium">{quiz.title}</h3>
+                          <p className="text-sm text-gray-400">{new Date(quiz.created_at).toLocaleDateString()}</p>
+                        </div>
+                        <motion.button
+                          onClick={() => router.push(`/quiz/${quiz.id}`)}
+                          className="text-indigo-400 hover:text-indigo-300"
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.9 }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M10.293 5.293a1 1 0 011.414 0l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414-1.414L12.586 11H5a1 1 0 110-2h7.586l-2.293-2.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                        </motion.button>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+                
+                <div className="mt-4 text-center">
+                  <motion.button
+                    onClick={() => router.push('/quiz/history')}
+                    className="text-indigo-400 hover:text-indigo-300 text-sm"
+                    whileHover={{ scale: 1.05 }}
+                  >
+                    Voir tous mes quiz
+                  </motion.button>
+                </div>
               </motion.div>
               
+              {/* Trophées récents */}
               <motion.div
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
-                className="bg-white rounded-lg shadow-lg p-6"
+                className="bg-white/5 backdrop-blur-xl rounded-2xl p-6 shadow-xl border border-white/10 relative"
               >
-                <h3 className="text-lg font-medium text-gray-500 mb-2">Quiz complétés</h3>
-                <p className="text-3xl font-bold">{stats.quizzesCompleted}</p>
-              </motion.div>
-              
-              <motion.div
-                variants={cardVariants}
-                initial="hidden"
-                animate="visible"
-                transition={{ delay: 0.4 }}
-                className="bg-white rounded-lg shadow-lg p-6"
-              >
-                <h3 className="text-lg font-medium text-gray-500 mb-2">Quiz créés</h3>
-                <p className="text-3xl font-bold">{stats.quizzesCreated}</p>
+                <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                  <span className="text-purple-400">→</span> Trophées récents
+                </h2>
+                
+                {recentTrophies.length === 0 ? (
+                  <p className="text-gray-400 text-center py-6">
+                    Aucun trophée obtenu. Participez à des quiz pour en gagner !
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {recentTrophies.map((trophy) => (
+                      <motion.div
+                        key={trophy.id}
+                        className="bg-white/5 rounded-xl p-3 border border-white/10 flex items-center gap-3"
+                        whileHover={{ x: 5 }}
+                      >
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-yellow-500 to-amber-500 flex items-center justify-center text-2xl">
+                          🏆
+                        </div>
+                        <div>
+                          <h3 className="text-white font-medium">{trophy.name}</h3>
+                          <p className="text-sm text-gray-400">{trophy.description}</p>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+                
+                <div className="mt-4 text-center">
+                  <motion.button
+                    onClick={() => router.push('/profile/badges')}
+                    className="text-purple-400 hover:text-purple-300 text-sm"
+                    whileHover={{ scale: 1.05 }}
+                  >
+                    Voir tous mes trophées
+                  </motion.button>
+                </div>
               </motion.div>
             </div>
-
-            {/* Quiz récents */}
-            <motion.div
-              variants={cardVariants}
-              initial="hidden"
-              animate="visible"
-              transition={{ delay: 0.5 }}
-              className="bg-white rounded-lg shadow-lg p-6 mb-8"
-            >
-              <h2 className="text-xl font-bold mb-4">Quiz récents</h2>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Titre
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Date
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Score
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Questions
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {recentQuizzes.map((quiz) => (
-                      <tr key={quiz.id}>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-medium text-gray-900">{quiz.title}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">
-                            {new Date(quiz.date).toLocaleDateString('fr-FR')}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900">{quiz.score}/{quiz.totalQuestions}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-500">{quiz.totalQuestions}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                          <Link href={`/quiz/${quiz.id}`} className="text-blue-600 hover:text-blue-900 mr-4">
-                            Voir
-                          </Link>
-                          <Link href={`/quiz/${quiz.id}/results`} className="text-green-600 hover:text-green-900">
-                            Résultats
-                          </Link>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </motion.div>
-
-            {/* Actions rapides */}
-            <motion.div
-              variants={cardVariants}
-              initial="hidden"
-              animate="visible"
-              transition={{ delay: 0.6 }}
-              className="bg-white rounded-lg shadow-lg p-6"
-            >
-              <h2 className="text-xl font-bold mb-4">Actions rapides</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <button
-                  onClick={createNewQuiz}
-                  className="flex items-center justify-center p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-                >
-                  <span className="text-blue-600 font-medium">Créer un nouveau quiz</span>
-                </button>
-                <button
-                  onClick={joinQuiz}
-                  className="flex items-center justify-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
-                >
-                  <span className="text-green-600 font-medium">Rejoindre un quiz</span>
-                </button>
-                <Link
-                  href="/profile"
-                  className="flex items-center justify-center p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
-                >
-                  <span className="text-purple-600 font-medium">Modifier mon profil</span>
-                </Link>
-              </div>
-            </motion.div>
           </>
+        ) : (
+          <div className="text-center py-10">
+            <p className="text-white">Session expirée, veuillez vous reconnecter.</p>
+            <button
+              onClick={() => router.push('/auth')}
+              className="mt-4 px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-lg text-white"
+            >
+              Se connecter
+            </button>
+          </div>
         )}
       </div>
     </div>

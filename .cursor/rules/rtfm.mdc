@@ -1,0 +1,40 @@
+---
+description: rtfm rules
+globs: 
+alwaysApply: false
+---
+alors c'est c'est j'ai creer un nouveau dossier @frontend-1 je vais y refaire a l'interieur un npx create-next-app@latest .   pour pouvoir faire mon projet en mode propre sans les rature qu'il y a. 
+
+Le frontend-1 dois fonctionner avec le dossier @api qui est sous @Laravel 12 une base de @Laravel11 . 
+
+Pour le frontend j'avais fais @frontend-site mais il ne passait pas pour le dossier api. 
+
+Du coup j'avais refais une app plus clean, mais ca ne me vas pas. 
+
+j'avais aussi fait une base qui me semble interessante a utiliser en html/js/php et dedans j'avais integrer un selecteur de theme, pour pouvoir changer le theme css. Je ne sais pas comment le mettre en place dans ce systeme avec laravel et next 
+
+@d:\laragon\www\rtfm2win.bak  voila le dossier de mon projet basique dont je te parlais avec le systme de theme. 
+
+Ne faudrait t'il pas une table sql et tout ce qui va avec dans le dossier @api 
+
+je voudrais aussi utiliser pour mon frontend next @TailwindcssNext  en V4.1 et donc plus de tailwind.config.ts
+
+je vais aussi utiliser @ShadcnUi @MagicUi.
+
+pour l'installation de next 
+
+Would you like to use TypeScript? Yes
+Would you like to use ESLint? Yes
+Would you like to use Tailwind CSS? No 
+Would you like your code inside a `src/` directory? No 
+Would you like to use App Router? (recommended)  Yes
+Would you like to use Turbopack for `next dev`?  No 
+Would you like to customize the import alias (`@/*` by default)? Yes
+What import alias would you like configured? @/* No
+
+J'installerais tailwind a part moi meme, car ce n'est pas la bonne version via l'install de next 
+
+les ligne de commande ne fonctionne pas. sur cet IDE du coup, je vais les faire avec commande de Laragon. 
+
+
+

@@ -13,11 +13,13 @@ return new class extends Migration
     {
         Schema::create('participants', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('session_id')->nullable()->constrained('quiz_sessions')->onDelete('cascade');
-            $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null');
+            $table->foreignId('quiz_session_id')->nullable()->constrained('quiz_sessions')->onDelete('cascade');
+            $table->foreignId('user_id')->nullable()->constrained()->onDelete('set null');
             $table->string('pseudo', 50)->nullable();
             $table->integer('score')->default(0);
             $table->timestamp('joined_at')->useCurrent();
+            $table->boolean('is_active')->default(true);
+            $table->boolean('is_presenter_mode')->default(false);
         });
     }
 

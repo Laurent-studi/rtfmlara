@@ -153,27 +153,24 @@ class UserController extends Controller
     }
 
     /**
-     * Affiche un utilisateur spécifique.
-     * Accessible aux administrateurs ou à l'utilisateur lui-même.
+     * Affiche le profil de l'utilisateur authentifié.
      *
-     * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function show($id)
+    public function show()
     {
         $authUser = Auth::user();
         
-        // Vérifier les permissions d'accès
-        if (!$authUser || ($authUser->id != $id && !$authUser->roles()->where('name', 'admin')->exists())) {
+        if (!$authUser) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Accès refusé'
-            ], Response::HTTP_FORBIDDEN);
+                'message' => 'Utilisateur non authentifié'
+            ], Response::HTTP_UNAUTHORIZED);
         }
         
         $user = User::with(['roles', 'interests', 'user_achievements.badge', 'user_achievements.trophy', 
                             'themes', 'user_sound_preferences.sound_effect', 'quizzes'])
-                    ->find($id);
+                    ->find($authUser->id);
         
         if (!$user) {
             return response()->json([
@@ -186,7 +183,7 @@ class UserController extends Controller
         $user->makeHidden('password');
         
         return response()->json([
-            'status' => 'success',
+            'success' => true,
             'data' => $user
         ]);
     }
@@ -199,13 +196,26 @@ class UserController extends Controller
      * @param  int  $id
      * @return \Illuminate\Http\Response
      */
-    public function update(Request $request, $id)
+    public function update(Request $request, $id = null)
     {
         $authUser = Auth::user();
+        
+        if (!$authUser) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Utilisateur non authentifié'
+            ], Response::HTTP_UNAUTHORIZED);
+        }
+        
         $isAdmin = $authUser && $authUser->roles()->where('name', 'admin')->exists();
         
+        // Si aucun ID n'est fourni, utiliser l'ID de l'utilisateur authentifié
+        if ($id === null) {
+            $id = $authUser->id;
+        }
+        
         // Vérifier les permissions d'accès
-        if (!$authUser || ($authUser->id != $id && !$isAdmin)) {
+        if ($authUser->id != $id && !$isAdmin) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Accès refusé'

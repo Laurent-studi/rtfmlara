@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property int|null $question_id
  * @property string $answer_text
  * @property bool $is_correct
+ * @property string|null $explanation
  * @property Carbon $created_at
  * 
  * @property Question|null $question
@@ -37,7 +38,8 @@ class Answer extends Model
 	protected $fillable = [
 		'question_id',
 		'answer_text',
-		'is_correct'
+		'is_correct',
+		'explanation'
 	];
 
 	public function question()

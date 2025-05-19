@@ -14,11 +14,13 @@ use Illuminate\Database\Eloquent\Model;
  * Class Participant
  * 
  * @property int $id
- * @property int|null $session_id
+ * @property int|null $quiz_session_id
  * @property int|null $user_id
  * @property string|null $pseudo
  * @property int $score
  * @property Carbon $joined_at
+ * @property bool $is_active
+ * @property bool $is_presenter_mode
  * 
  * @property QuizSession|null $quiz_session
  * @property User|null $user
@@ -32,23 +34,27 @@ class Participant extends Model
 	public $timestamps = false;
 
 	protected $casts = [
-		'session_id' => 'int',
+		'quiz_session_id' => 'int',
 		'user_id' => 'int',
 		'score' => 'int',
-		'joined_at' => 'datetime'
+		'joined_at' => 'datetime',
+		'is_active' => 'bool',
+		'is_presenter_mode' => 'bool'
 	];
 
 	protected $fillable = [
-		'session_id',
+		'quiz_session_id',
 		'user_id',
 		'pseudo',
 		'score',
-		'joined_at'
+		'joined_at',
+		'is_active',
+		'is_presenter_mode'
 	];
 
 	public function quiz_session()
 	{
-		return $this->belongsTo(QuizSession::class, 'session_id');
+		return $this->belongsTo(QuizSession::class, 'quiz_session_id');
 	}
 
 	public function user()

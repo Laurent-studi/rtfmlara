@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Quiz;
 use App\Models\Tag;
+use App\Models\Question;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -52,7 +53,6 @@ class QuizController extends Controller
                 'description' => 'nullable|string',
                 'category' => 'nullable|string|max:50',
                 'time_per_question' => 'nullable|integer|min:5|max:300',
-                'multiple_answers' => 'nullable|boolean',
                 'status' => 'nullable|in:draft,active,archived',
             ]);
 
@@ -70,7 +70,6 @@ class QuizController extends Controller
             $quiz->creator_id = $request->user()->id;
             $quiz->category = $request->category;
             $quiz->time_per_question = $request->time_per_question ?? 30;
-            $quiz->multiple_answers = $request->multiple_answers ?? false;
             $quiz->status = $request->status ?? 'draft';
             $quiz->code = Quiz::generateUniqueCode();
             $quiz->save();
@@ -139,7 +138,6 @@ class QuizController extends Controller
                 'description' => 'nullable|string',
                 'category' => 'nullable|string|max:50',
                 'time_per_question' => 'nullable|integer|min:5|max:300',
-                'multiple_answers' => 'nullable|boolean',
                 'status' => 'nullable|in:draft,active,archived',
             ]);
 
@@ -155,7 +153,6 @@ class QuizController extends Controller
             $quiz->description = $request->description ?? $quiz->description;
             $quiz->category = $request->category ?? $quiz->category;
             $quiz->time_per_question = $request->time_per_question ?? $quiz->time_per_question;
-            $quiz->multiple_answers = $request->has('multiple_answers') ? $request->multiple_answers : $quiz->multiple_answers;
             $quiz->status = $request->status ?? $quiz->status;
             $quiz->save();
 
@@ -413,6 +410,125 @@ class QuizController extends Controller
                 'message' => 'Tag non trouvé ou erreur',
                 'error' => $e->getMessage()
             ], 404);
+        }
+    }
+
+    /**
+     * Crée un quiz avec des questions sélectionnées aléatoirement depuis la base de données.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function createRandomQuiz(Request $request)
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'title' => 'required|string|max:100',
+                'description' => 'nullable|string',
+                'category' => 'nullable|string|max:50',
+                'time_per_question' => 'nullable|integer|min:5|max:300',
+                'number_of_questions' => 'required|integer|min:1|max:50',
+                'points_per_question' => 'nullable|integer|min:100',
+                'status' => 'nullable|in:draft,active,archived',
+                'categories' => 'nullable|array',
+                'categories.*' => 'nullable|string',
+                'difficulty_level' => 'nullable|integer|min:1|max:10',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Erreur de validation',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            DB::beginTransaction();
+
+            // Créer le quiz
+            $quiz = new Quiz();
+            $quiz->title = $request->title;
+            $quiz->description = $request->description;
+            $quiz->creator_id = $request->user()->id;
+            $quiz->category = $request->category;
+            $quiz->time_per_question = $request->time_per_question ?? 30;
+            $quiz->status = $request->status ?? 'active';
+            $quiz->code = Quiz::generateUniqueCode();
+            $quiz->save();
+
+            // Construire la requête pour les questions aléatoires
+            $questionsQuery = Question::with('answers');
+            
+            // Filtrer par catégorie si spécifié
+            if ($request->has('categories') && !empty($request->categories)) {
+                $questionsQuery->whereHas('quiz', function($query) use ($request) {
+                    $query->whereIn('category', $request->categories);
+                });
+            }
+            
+            // Filtrer par niveau de difficulté si spécifié
+            if ($request->has('difficulty_level')) {
+                $questionsQuery->whereHas('quiz', function($query) use ($request) {
+                    $query->where('difficulty_level', $request->difficulty_level);
+                });
+            }
+            
+            // Obtenir des questions aléatoires
+            $randomQuestions = $questionsQuery->inRandomOrder()
+                ->limit($request->number_of_questions)
+                ->get();
+            
+            // S'il n'y a pas assez de questions
+            if ($randomQuestions->count() < $request->number_of_questions) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Pas assez de questions disponibles pour créer un quiz aléatoire avec les critères sélectionnés',
+                    'available_questions' => $randomQuestions->count(),
+                    'requested_questions' => $request->number_of_questions
+                ], 422);
+            }
+            
+            // Cloner les questions et réponses dans le nouveau quiz
+            foreach ($randomQuestions as $index => $sourceQuestion) {
+                // Créer une nouvelle question pour le quiz
+                $newQuestion = new Question();
+                $newQuestion->quiz_id = $quiz->id;
+                $newQuestion->question_text = $sourceQuestion->question_text;
+                $newQuestion->points = $request->points_per_question ?? 3000;
+                $newQuestion->order_index = $index;
+                $newQuestion->multiple_answers = $sourceQuestion->multiple_answers ?? false;
+                $newQuestion->save();
+                
+                // Copier les réponses
+                foreach ($sourceQuestion->answers as $sourceAnswer) {
+                    $newQuestion->answers()->create([
+                        'answer_text' => $sourceAnswer->answer_text,
+                        'is_correct' => $sourceAnswer->is_correct,
+                        'explanation' => $sourceAnswer->explanation ?? null
+                    ]);
+                }
+            }
+            
+            DB::commit();
+            
+            // Charger toutes les questions et réponses pour la réponse API
+            $quiz->load('questions.answers');
+            
+            return response()->json([
+                'success' => true,
+                'message' => 'Quiz aléatoire créé avec succès',
+                'data' => $quiz
+            ], 201);
+            
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Une erreur s\'est produite lors de la création du quiz aléatoire',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 }

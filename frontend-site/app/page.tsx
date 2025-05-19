@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { Particles } from './../components/magicui/particles';
 import { ShineBorder } from '@/components/magicui/shine-border';
+import ThemeSelector from '@/components/ThemeSelector';
 
 
 function useWindowSize() {
@@ -31,6 +32,7 @@ export default function HomePage() {
   const router = useRouter();
   const [quizCode, setQuizCode] = useState('');
   const { width, height } = useWindowSize();
+  const [showThemeSelector, setShowThemeSelector] = useState(false);
 
   const handleJoinQuiz = (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,16 +54,70 @@ export default function HomePage() {
       <Particles className="absolute inset-0" quantity={20} color="#7c3aed" size={1.2} />
       <Particles className="absolute inset-0" quantity={15} color="#ec4899" size={1.6} />
       
+      {/* Barre de navigation */}
+      <div className="absolute top-0 left-0 right-0 z-30 flex justify-between items-center px-6 py-4">
+        {/* Logo et titre (gauche) */}
+        <div className="flex items-center gap-3">
+          <Image
+            src="/img/logo4.png"
+            alt="RTFM2Win Logo"
+            width={40}
+            height={40}
+            className="rounded-lg"
+          />
+          <span className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">
+            RTFM2Win
+          </span>
+        </div>
+        
+        {/* Actions (droite) */}
+        <div className="flex items-center gap-3">
+          {/* Bouton thème */}
+          <div className="relative">
+            <motion.button
+              onClick={() => setShowThemeSelector(!showThemeSelector)}
+              className="px-3 py-2 bg-white/10 backdrop-blur-md rounded-lg text-white hover:bg-white/20 transition-all duration-200"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clipRule="evenodd" />
+              </svg>
+            </motion.button>
+            
+            {showThemeSelector && (
+              <motion.div 
+                className="absolute right-0 mt-2 w-80 z-30"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+              >
+                <ThemeSelector />
+              </motion.div>
+            )}
+          </div>
+          
+          {/* Bouton d'authentification */}
+          <motion.button
+            onClick={() => router.push('/auth')}
+            className="px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg hover:shadow-lg hover:shadow-indigo-500/25 transition-all duration-200"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            Connexion / Inscription
+          </motion.button>
+        </div>
+      </div>
+      
       <div className="container mx-auto px-4 py-16 relative z-10">      
-
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-16"
+          className="text-center mb-16 mt-16" // Ajout de margin-top pour laisser place à la barre de navigation
         >
           <div className="flex items-center justify-center gap-4 mb-6">
             <Image
-              src="/img/logo6.png"
+              src="/img/logo4.png"
               alt="RTFM2Win Logo"
               width={80}
               height={80}

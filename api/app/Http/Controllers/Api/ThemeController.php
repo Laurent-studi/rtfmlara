@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Theme;
 use App\Models\UserTheme;
+use App\Models\UserPreference;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
@@ -306,5 +307,31 @@ class ThemeController extends Controller
             'message' => 'Thème appliqué avec succès',
             'data' => $theme
         ]);
+    }
+
+    public function userTheme()
+    {
+        $user = Auth::user();
+        $preferences = UserPreference::where('user_id', $user->id)->first();
+        
+        if ($preferences && $preferences->theme_id) {
+            return response()->json(Theme::find($preferences->theme_id));
+        }
+        
+        return response()->json(Theme::where('is_default', true)->first());
+    }
+
+    public function setUserTheme(Request $request)
+    {
+        $request->validate([
+            'theme_id' => 'required|exists:themes,id',
+        ]);
+
+        $user = Auth::user();
+        $preferences = UserPreference::firstOrNew(['user_id' => $user->id]);
+        $preferences->theme_id = $request->theme_id;
+        $preferences->save();
+
+        return response()->json(['message' => 'Thème mis à jour avec succès']);
     }
 }

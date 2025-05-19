@@ -18,13 +18,16 @@ use App\Http\Controllers\Api\FriendController;
 use App\Http\Controllers\Api\InterestController;
 use App\Http\Controllers\Api\LeagueController;
 use App\Http\Controllers\Api\LeaderboardController;
-use App\Http\Controllers\Api\LearningStatsController;
+// use App\Http\Controllers\Api\LearningStatsController; // Commenté car le contrôleur n'existe pas encore
 use App\Http\Controllers\Api\OfflineSessionController;
 use App\Http\Controllers\Api\PdfExportController;
 use App\Http\Controllers\Api\SeasonalThemeController;
 use App\Http\Controllers\Api\SoundEffectController;
 use App\Http\Controllers\Api\TagController;
 use App\Http\Controllers\Api\AchievementController;
+use App\Http\Controllers\Api\ThemeController;
+use App\Http\Controllers\Api\AdminController;
+use App\Http\Controllers\Api\PresentationController;
 
 // Routes publiques
 Route::post('/register', [AuthController::class, 'register']);
@@ -71,6 +74,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/quiz-sessions/{session}/join', [QuizSessionController::class, 'join']);
     Route::post('/quiz-sessions/{session}/start', [QuizSessionController::class, 'start']);
     Route::post('/quiz-sessions/{session}/submit-answer', [QuizSessionController::class, 'submitAnswer']);
+    
+    // Routes pour le mode présentation
+    Route::prefix('presentation')->group(function () {
+        Route::post('/sessions', [PresentationController::class, 'createSession']);
+        Route::get('/sessions/{sessionId}', [PresentationController::class, 'getSessionState']);
+        Route::post('/sessions/{sessionId}/start', [PresentationController::class, 'startPresentation']);
+        Route::post('/sessions/{sessionId}/next', [PresentationController::class, 'nextQuestion']);
+        Route::post('/sessions/{sessionId}/end', [PresentationController::class, 'endPresentation']);
+        Route::get('/sessions/{sessionId}/leaderboard', [PresentationController::class, 'showLeaderboard']);
+        Route::post('/join', [PresentationController::class, 'joinSession']);
+        Route::post('/sessions/{sessionId}/answer', [PresentationController::class, 'submitAnswer']);
+    });
     
     // Battle Royale
     Route::get('/battle-royale', [BattleRoyaleController::class, 'index']);
@@ -127,8 +142,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/leagues/current', [LeagueController::class, 'getCurrentUserLeague']);
     
     // Statistiques d'apprentissage
-    Route::get('/learning-stats', [LearningStatsController::class, 'index']);
-    Route::get('/learning-stats/quiz/{quiz}', [LearningStatsController::class, 'getByQuiz']);
+    // Ces routes sont commentées car le contrôleur n'existe pas encore
+    // Route::get('/learning-stats', [LearningStatsController::class, 'index']);
+    // Route::get('/learning-stats/quiz/{quiz}', [LearningStatsController::class, 'getByQuiz']);
     
     // Statistiques générales
     Route::get('/statistics', [StatisticsController::class, 'index']);
@@ -187,6 +203,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/friends/block', [FriendController::class, 'blockUser']);
     Route::delete('/friends/unblock/{userId}', [FriendController::class, 'unblockUser']);
     Route::get('/friends/search', [FriendController::class, 'searchUsers']);
+
+    // Thèmes
+    Route::get('/user/preferences/theme', [ThemeController::class, 'userTheme']);
+    Route::post('/user/preferences/theme', [ThemeController::class, 'setUserTheme']);
+    
+    // Administration (protégé par role admin)
+    Route::prefix('admin')->middleware('check.role:admin,super_admin')->group(function () {
+        Route::get('/users', [AdminController::class, 'getAllUsers']);
+        Route::get('/roles', [AdminController::class, 'getAllRoles']);
+        Route::post('/users/{userId}/roles', [AdminController::class, 'assignRole']);
+        Route::delete('/users/{userId}/roles/{roleId}', [AdminController::class, 'removeRole']);
+    });
 });
 
 // Routes pour les quiz accessibles publiquement
@@ -196,6 +224,20 @@ Route::get('/quizzes/{id}', [QuizController::class, 'show']);
 // Routes pour les quiz nécessitant une authentification
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/quizzes', [QuizController::class, 'store']);
+    Route::post('/quizzes/random', [QuizController::class, 'createRandomQuiz']);
     Route::put('/quizzes/{id}', [QuizController::class, 'update']);
     Route::delete('/quizzes/{id}', [QuizController::class, 'destroy']);
+});
+
+
+use Laravel\Socialite\Facades\Socialite;
+
+Route::get('/auth/redirect', function () {
+    return Socialite::driver('github')->redirect();
+});
+
+Route::get('/auth/callback', function () {
+    $user = Socialite::driver('github')->user();
+
+    // $user->token
 });

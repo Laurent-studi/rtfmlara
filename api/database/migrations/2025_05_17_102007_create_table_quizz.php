@@ -20,6 +20,8 @@ return new class extends Migration
             $table->integer('time_per_question')->default(30);
             $table->boolean('multiple_answers')->default(false);
             $table->enum('status', ['draft', 'active', 'archived'])->default('draft');
+            $table->string('code', 6)->unique();
+            $table->string('join_code', 6)->nullable();
             $table->timestamps();
         });
     }

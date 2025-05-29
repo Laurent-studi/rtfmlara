@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ShineBorder } from '@/components/magicui/shine-border';
 import { api } from '@/lib/api';
+import { API_ENDPOINTS } from '@/lib/api/endpoints';
 import Link from 'next/link';
 
 export default function QuizDetailPage() {
@@ -20,13 +21,15 @@ export default function QuizDetailPage() {
     const fetchQuizDetails = async () => {
       try {
         setIsLoading(true);
+        setError(null);
         
         if (!quizId) {
           setError('ID de quiz non spécifié');
           return;
         }
         
-        const response = await api.get(`quizzes/${quizId}`);
+        // Utiliser l'endpoint défini pour récupérer un quiz par ID
+        const response = await api.get(API_ENDPOINTS.quiz.byId(quizId as string));
         
         if (response.success && response.data) {
           setQuiz(response.data);
@@ -34,7 +37,48 @@ export default function QuizDetailPage() {
           setError(response.message || 'Erreur lors du chargement du quiz');
         }
       } catch (err: any) {
+        console.error('Erreur lors du chargement du quiz:', err);
         setError(err.message || 'Erreur lors du chargement du quiz');
+        
+        // Données de fallback pour le développement
+        const mockQuiz = {
+          id: quizId,
+          title: 'Quiz de démonstration',
+          description: 'Ceci est un quiz de démonstration pour tester l\'interface',
+          category: 'Général',
+          code: 'DEMO123',
+          creator: {
+            id: 1,
+            username: 'Créateur Demo'
+          },
+          creator_id: 1,
+          current_user_id: 1,
+          questions: [
+            {
+              id: 1,
+              question_text: 'Quelle est la capitale de la France ?',
+              multiple_answers: false,
+              answers: [
+                { id: 1, text: 'Paris', is_correct: true },
+                { id: 2, text: 'Lyon', is_correct: false },
+                { id: 3, text: 'Marseille', is_correct: false }
+              ]
+            },
+            {
+              id: 2,
+              question_text: 'Quels sont les langages de programmation web ?',
+              multiple_answers: true,
+              answers: [
+                { id: 4, text: 'JavaScript', is_correct: true },
+                { id: 5, text: 'HTML', is_correct: true },
+                { id: 6, text: 'CSS', is_correct: true },
+                { id: 7, text: 'Python', is_correct: false }
+              ]
+            }
+          ]
+        };
+        
+        setQuiz(mockQuiz);
       } finally {
         setIsLoading(false);
       }
@@ -114,7 +158,7 @@ export default function QuizDetailPage() {
             onClick={handlePlay}
             className="flex-1 px-6 py-3 bg-black text-[#00ffff] border border-[#00ffff] font-medium rounded-xl hover:bg-[#00ffff]/10 focus:outline-none transition-all"
           >
-            🎮 Jouer
+            🎮 Jouer 
           </button>
           
           <button

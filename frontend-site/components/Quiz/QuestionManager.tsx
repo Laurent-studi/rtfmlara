@@ -27,15 +27,17 @@ interface Answer {
 interface QuestionManagerProps {
   quiz: any;
   onFinish: () => void;
+  isEditing?: boolean;
 }
 
-export default function QuestionManager({ quiz, onFinish }: QuestionManagerProps) {
+export default function QuestionManager({ quiz, onFinish, isEditing = false }: QuestionManagerProps) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<Question>({
     quiz_id: quiz.id,
     text: '',
     time: quiz.time_per_question || 30,
     points: 1000,
+    multiple_answers: false,
     answers: [
       { text: '', is_correct: true },
       { text: '', is_correct: false },
@@ -43,48 +45,37 @@ export default function QuestionManager({ quiz, onFinish }: QuestionManagerProps
       { text: '', is_correct: false }
     ]
   });
-  
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  // Charger les questions existantes si nécessaire
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
-        // Utiliser l'API existante
         const response = await api.get(`quizzes/${quiz.id}/questions`);
-        
         if (response && response.data) {
-          // Conversion du format de l'API au format local
-          const formattedQuestions = response.data.map((q: any) => ({
-            id: q.id,
-            quiz_id: q.quiz_id,
-            text: q.question_text,
-            question_text: q.question_text,
-            points: q.points,
-            multiple_answers: q.multiple_answers,
-            order_index: q.order_index,
-            answers: q.answers.map((a: any) => ({
-              id: a.id,
-              text: a.answer_text,
-              answer_text: a.answer_text,
-              is_correct: a.is_correct === true || a.is_correct === 1,
-              explanation: a.explanation
-            }))
-          }));
-          
-          setQuestions(formattedQuestions);
+          setQuestions(response.data);
         }
-      } catch (error) {
-        console.error('Erreur lors du chargement des questions:', error);
+      } catch (err) {
+        console.error('Erreur lors du chargement des questions:', err);
       }
     };
 
-    if (quiz && quiz.id) {
+    if (quiz.id) {
       fetchQuestions();
     }
-  }, [quiz]);
+  }, [quiz.id]);
+
+  // Réinitialiser les messages après 5 secondes
+  useEffect(() => {
+    if (error || success) {
+      const timer = setTimeout(() => {
+        setError('');
+        setSuccess('');
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error, success]);
 
   const handleQuestionTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setCurrentQuestion({
@@ -105,11 +96,26 @@ export default function QuestionManager({ quiz, onFinish }: QuestionManagerProps
   const handleCorrectAnswerChange = (index: number) => {
     const newAnswers = currentQuestion.answers.map((answer, i) => ({
       ...answer,
-      is_correct: i === index
+      is_correct: currentQuestion.multiple_answers ? 
+        (i === index ? !answer.is_correct : answer.is_correct) : 
+        i === index
     }));
     setCurrentQuestion({
       ...currentQuestion,
       answers: newAnswers
+    });
+  };
+
+  const handleMultipleAnswersChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const isMultiple = e.target.checked;
+    setCurrentQuestion({
+      ...currentQuestion,
+      multiple_answers: isMultiple,
+      // Si on passe en mode simple, s'assurer qu'une seule réponse est correcte
+      answers: isMultiple ? currentQuestion.answers : currentQuestion.answers.map((answer, i) => ({
+        ...answer,
+        is_correct: i === 0 ? true : false
+      }))
     });
   };
 
@@ -128,34 +134,45 @@ export default function QuestionManager({ quiz, onFinish }: QuestionManagerProps
   };
 
   const handleAddQuestion = async () => {
-    // Validation de base
+    setError('');
+    setSuccess('');
+    
+    // Validation
     if (!currentQuestion.text.trim()) {
-      setError('Veuillez saisir le texte de la question');
+      setError('Le texte de la question est requis');
       return;
     }
 
-    const emptyAnswers = currentQuestion.answers.filter(a => !a.text.trim());
-    if (emptyAnswers.length > 0) {
-      setError('Toutes les réponses doivent être remplies');
+    const validAnswers = currentQuestion.answers.filter(a => a.text.trim());
+    if (validAnswers.length < 2) {
+      setError('Au moins 2 réponses sont requises');
+      return;
+    }
+
+    const correctAnswers = validAnswers.filter(a => a.is_correct);
+    if (correctAnswers.length === 0) {
+      setError('Au moins une réponse doit être correcte');
+      return;
+    }
+
+    if (!currentQuestion.multiple_answers && correctAnswers.length > 1) {
+      setError('Une seule réponse peut être correcte en mode réponse unique');
       return;
     }
 
     setIsLoading(true);
-    setError(null);
-    setSuccess(null);
 
     try {
-      // Données à envoyer - format corrigé selon l'API backend
       const questionData = {
         quiz_id: parseInt(quiz.id.toString()),
         question_text: currentQuestion.text,
         points: currentQuestion.points || 1000,
-        multiple_answers: false,
+        multiple_answers: currentQuestion.multiple_answers || false,
         order_index: questions.length,
-        answers: currentQuestion.answers.map(answer => ({
+        answers: validAnswers.map(answer => ({
           answer_text: answer.text,
           is_correct: answer.is_correct,
-          explanation: null
+          explanation: answer.explanation || null
         }))
       };
       
@@ -167,7 +184,7 @@ export default function QuestionManager({ quiz, onFinish }: QuestionManagerProps
       if (!response || !response.data) {
         throw new Error('Données de réponse invalides');
       }
-      
+
       const newQuestionData = response.data;
       
       // Conversion du format de réponse au format local
@@ -177,6 +194,7 @@ export default function QuestionManager({ quiz, onFinish }: QuestionManagerProps
         text: newQuestionData.question_text,
         question_text: newQuestionData.question_text,
         points: newQuestionData.points,
+        multiple_answers: newQuestionData.multiple_answers,
         answers: newQuestionData.answers.map((a: any) => ({
           id: a.id,
           text: a.answer_text,
@@ -185,16 +203,17 @@ export default function QuestionManager({ quiz, onFinish }: QuestionManagerProps
           explanation: a.explanation
         }))
       };
-      
+
       // Mise à jour de l'interface avec la question
       setQuestions([...questions, newQuestion]);
-      
+
       // Réinitialiser le formulaire
       setCurrentQuestion({
         quiz_id: quiz.id,
         text: '',
         time: quiz.time_per_question || 30,
         points: 1000,
+        multiple_answers: false,
         answers: [
           { text: '', is_correct: true },
           { text: '', is_correct: false },
@@ -202,9 +221,9 @@ export default function QuestionManager({ quiz, onFinish }: QuestionManagerProps
           { text: '', is_correct: false }
         ]
       });
-      
+
       setSuccess('Question ajoutée avec succès!');
-      
+
     } catch (err: any) {
       let errorMsg = 'Erreur lors de l\'ajout de la question';
       
@@ -215,7 +234,7 @@ export default function QuestionManager({ quiz, onFinish }: QuestionManagerProps
       } else if (err.message) {
         errorMsg = err.message;
       }
-      
+
       // Solution de secours: ajouter localement si le serveur échoue
       const mockQuestion = {
         id: Date.now(), 
@@ -223,19 +242,20 @@ export default function QuestionManager({ quiz, onFinish }: QuestionManagerProps
         text: currentQuestion.text,
         question_text: currentQuestion.text,
         points: currentQuestion.points || 1000,
-        answers: currentQuestion.answers.map((answer, index) => ({
+        multiple_answers: currentQuestion.multiple_answers || false,
+        answers: currentQuestion.answers.filter(a => a.text.trim()).map((answer, index) => ({
           id: Date.now() + index,
           text: answer.text,
           answer_text: answer.text,
-          is_correct: answer.is_correct
+          is_correct: answer.is_correct,
+          explanation: answer.explanation
         }))
       };
-      
+
       setQuestions([...questions, mockQuestion]);
       setSuccess('Question ajoutée en mode secours local (le serveur n\'a pas pu traiter la demande).');
       
       console.warn(errorMsg);
-      // Nous ne mettons pas d'erreur visuelle puisque nous avons réussi en mode secours
       
       // Réinitialiser le formulaire
       setCurrentQuestion({
@@ -243,6 +263,7 @@ export default function QuestionManager({ quiz, onFinish }: QuestionManagerProps
         text: '',
         time: quiz.time_per_question || 30,
         points: 1000,
+        multiple_answers: false,
         answers: [
           { text: '', is_correct: true },
           { text: '', is_correct: false },
@@ -265,22 +286,22 @@ export default function QuestionManager({ quiz, onFinish }: QuestionManagerProps
   };
 
   return (
-    <div className="bg-black border border-[#333] rounded-lg p-6 mb-8">
+    <div className="card p-6 mb-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[#00ffff] mb-2">Ajouter des questions</h1>
-        <p className="text-gray-400">
+        <h1 className="text-2xl font-bold mb-2">Ajouter des questions</h1>
+        <p className="text-muted-foreground">
           Quiz: {quiz.title} - Ajoutez des questions et leurs réponses
         </p>
       </div>
       
       {error && (
-        <div className="bg-red-500/20 border border-red-500/50 text-white p-4 rounded-lg mb-6">
+        <div className="bg-destructive/15 border border-destructive/50 text-destructive p-4 rounded-lg mb-6">
           {error}
         </div>
       )}
       
       {success && (
-        <div className="bg-green-500/20 border border-green-500/50 text-white p-4 rounded-lg mb-6">
+        <div className="bg-green-500/15 border border-green-500/50 text-green-600 dark:text-green-400 p-4 rounded-lg mb-6">
           {success}
         </div>
       )}
@@ -288,19 +309,30 @@ export default function QuestionManager({ quiz, onFinish }: QuestionManagerProps
       {/* Questions existantes */}
       {questions.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-xl font-semibold text-[#00ffff] mb-4">Questions ajoutées</h2>
+          <h2 className="text-xl font-semibold mb-4">Questions ajoutées</h2>
           <div className="space-y-4">
             {questions.map((question, index) => (
-              <div key={question.id || index} className="p-4 bg-black border border-[#333] rounded-lg">
-                <p className="font-semibold text-white">Q{index + 1}: {question.question_text || question.text}</p>
+              <div key={question.id || index} className="card p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <p className="font-semibold">Q{index + 1}: {question.question_text || question.text}</p>
+                  {question.multiple_answers && (
+                    <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded">
+                      Réponses multiples
+                    </span>
+                  )}
+                </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
                   {question.answers.map((answer, ansIndex) => (
                     <div 
                       key={answer.id || ansIndex} 
-                      className={`p-2 rounded ${answer.is_correct ? 'bg-black border border-[#00ffff] text-[#00ffff]' : 'bg-black border border-[#333] text-gray-300'}`}
+                      className={`p-2 rounded border ${
+                        answer.is_correct 
+                          ? 'border-primary bg-primary/10 text-primary' 
+                          : 'border-border bg-muted/50 text-muted-foreground'
+                      }`}
                     >
                       {answer.answer_text || answer.text}
-                      {answer.is_correct && <span className="ml-2 text-sm text-[#00ffff]">✓</span>}
+                      {answer.is_correct && <span className="ml-2 text-sm">✓</span>}
                     </div>
                   ))}
                 </div>
@@ -311,13 +343,13 @@ export default function QuestionManager({ quiz, onFinish }: QuestionManagerProps
       )}
 
       {/* Formulaire de nouvelle question */}
-      <div className="bg-black border border-[#333] rounded-lg p-5 mb-6">
-        <h2 className="text-xl font-semibold text-[#00ffff] mb-4">Nouvelle question</h2>
+      <div className="card p-5 mb-6">
+        <h2 className="text-xl font-semibold mb-4">Nouvelle question</h2>
         
         <div className="space-y-5">
           <div>
-            <label htmlFor="question-text" className="block text-white mb-2">
-              Question <span className="text-red-400">*</span>
+            <label htmlFor="question-text" className="block font-medium mb-2">
+              Question <span className="text-destructive">*</span>
             </label>
             <input
               id="question-text"
@@ -325,13 +357,13 @@ export default function QuestionManager({ quiz, onFinish }: QuestionManagerProps
               value={currentQuestion.text}
               onChange={handleQuestionTextChange}
               placeholder="Saisissez votre question ici"
-              className="w-full bg-black border border-[#333] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#00ffff]"
+              className="input w-full"
             />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label htmlFor="time" className="block text-white mb-2">
+              <label htmlFor="time" className="block font-medium mb-2">
                 Temps (secondes)
               </label>
               <input
@@ -341,11 +373,11 @@ export default function QuestionManager({ quiz, onFinish }: QuestionManagerProps
                 onChange={handleTimeChange}
                 min={5}
                 max={300}
-                className="w-full bg-black border border-[#333] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#00ffff]"
+                className="input w-full"
               />
             </div>
             <div>
-              <label htmlFor="points" className="block text-white mb-2">
+              <label htmlFor="points" className="block font-medium mb-2">
                 Points
               </label>
               <input
@@ -356,38 +388,56 @@ export default function QuestionManager({ quiz, onFinish }: QuestionManagerProps
                 min={100}
                 step={100}
                 max={10000}
-                className="w-full bg-black border border-[#333] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#00ffff]"
+                className="input w-full"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-white mb-2">
-              Réponses <span className="text-red-400">*</span>
+            <div className="flex items-center space-x-2 mb-4">
+              <input
+                type="checkbox"
+                id="multiple-answers"
+                checked={currentQuestion.multiple_answers}
+                onChange={handleMultipleAnswersChange}
+                className="checkbox"
+              />
+              <label htmlFor="multiple-answers" className="font-medium">
+                Autoriser plusieurs réponses correctes
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label className="block font-medium mb-2">
+              Réponses <span className="text-destructive">*</span>
             </label>
             <div className="space-y-3">
               {currentQuestion.answers.map((answer, index) => (
                 <div key={index} className="flex items-center space-x-3">
                   <input
-                    type="radio"
+                    type={currentQuestion.multiple_answers ? "checkbox" : "radio"}
                     id={`correct-${index}`}
-                    name="correct-answer"
+                    name={currentQuestion.multiple_answers ? undefined : "correct-answer"}
                     checked={answer.is_correct}
                     onChange={() => handleCorrectAnswerChange(index)}
-                    className="h-5 w-5 text-[#00ffff]"
+                    className={currentQuestion.multiple_answers ? "checkbox" : "radio"}
                   />
                   <input
                     type="text"
                     value={answer.text}
                     onChange={(e) => handleAnswerTextChange(index, e)}
                     placeholder={`Réponse ${index + 1}`}
-                    className="w-full bg-black border border-[#333] rounded-lg px-4 py-3 text-white focus:outline-none focus:border-[#00ffff]"
+                    className="input flex-1"
                   />
                 </div>
               ))}
             </div>
-            <p className="text-sm text-gray-500 mt-2">
-              Sélectionnez le bouton radio à côté de la réponse correcte
+            <p className="text-sm text-muted-foreground mt-2">
+              {currentQuestion.multiple_answers 
+                ? "Cochez les cases à côté des réponses correctes" 
+                : "Sélectionnez le bouton radio à côté de la réponse correcte"
+              }
             </p>
           </div>
         </div>
@@ -397,14 +447,14 @@ export default function QuestionManager({ quiz, onFinish }: QuestionManagerProps
         <button
           onClick={handleAddQuestion}
           disabled={isLoading}
-          className="px-6 py-3 bg-black border border-[#00ffff] text-[#00ffff] rounded-lg font-medium transition-colors disabled:opacity-70 hover:bg-[#00ffff]/10"
+          className="btn btn-primary"
         >
           {isLoading ? 'Ajout en cours...' : 'Ajouter cette question'}
         </button>
         
         <button
           onClick={handleFinish}
-          className="px-6 py-3 bg-black border border-[#00ffff] text-[#00ffff] rounded-lg font-medium transition-colors hover:bg-[#00ffff]/10"
+          className="btn btn-secondary"
         >
           Terminer et publier le quiz
         </button>

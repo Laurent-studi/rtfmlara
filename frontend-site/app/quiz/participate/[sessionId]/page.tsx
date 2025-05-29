@@ -28,12 +28,36 @@ export default function ParticipateQuizPage() {
   // Fonction pour récupérer l'état actuel de la session
   const fetchSessionState = useCallback(async () => {
     try {
-      const response = await api.get(`presentation/sessions/${sessionId}`);
+      // Pour les participants anonymes, utiliser l'endpoint spécifique avec participant_id
+      const participantData = localStorage.getItem('participant_session');
+      let response;
+      
+      if (participantData) {
+        const participant = JSON.parse(participantData);
+        if (participant.session_id === sessionId) {
+          // Utiliser l'endpoint spécifique pour les participants
+          response = await api.get(`presentation/sessions/${sessionId}/participants/${participant.participant_id}`, { skipAuth: true });
+        } else {
+          // Session différente, utiliser l'endpoint général
+          response = await api.get(`presentation/sessions/${sessionId}`, { skipAuth: true });
+        }
+      } else {
+        // Pas de données de participant, utiliser l'endpoint général
+        response = await api.get(`presentation/sessions/${sessionId}`, { skipAuth: true });
+      }
       
       if (response.success && response.data) {
         setSession(response.data.session);
-        setParticipantInfo(response.data.participant);
-        setScore(response.data.participant.score || 0);
+        
+        // Gérer les informations du participant (peut être undefined pour les anonymes)
+        if (response.data.participant) {
+          setParticipantInfo(response.data.participant);
+          setScore(response.data.participant.score || 0);
+        } else {
+          // Pour les utilisateurs anonymes sans participant_id
+          setParticipantInfo(null);
+          setScore(0);
+        }
         
         if (response.data.session.status === 'pending') {
           setState('waiting');
@@ -69,13 +93,24 @@ export default function ParticipateQuizPage() {
   useEffect(() => {
     fetchSessionState();
     
-    // Établir une actualisation régulière
+    // Établir une actualisation régulière seulement si nécessaire
     const interval = setInterval(() => {
-      fetchSessionState();
-    }, 2000); // Toutes les 2 secondes
+      // Ne faire du polling que si on est en attente ou en question
+      if (state === 'waiting' || state === 'question') {
+        fetchSessionState();
+      }
+    }, 3000); // Toutes les 3 secondes (moins agressif)
     
     return () => clearInterval(interval);
-  }, [fetchSessionState]);
+  }, [fetchSessionState, state]); // Ajouter state comme dépendance
+
+  // Arrêter le polling quand la session est terminée ou en erreur
+  useEffect(() => {
+    if (state === 'ended' || error) {
+      // Le polling s'arrêtera automatiquement grâce à la condition dans setInterval
+      console.log('🛑 Arrêt du polling - Session terminée ou erreur');
+    }
+  }, [state, error]);
 
   // Fonction pour gérer la sélection d'une réponse
   const toggleAnswer = (answerId: number) => {
@@ -103,13 +138,23 @@ export default function ParticipateQuizPage() {
     try {
       setHasAnswered(true);
       
+      // Récupérer les données du participant depuis localStorage
+      const participantData = localStorage.getItem('participant_session');
+      if (!participantData) {
+        setError('Informations de participant manquantes. Veuillez rejoindre à nouveau la session.');
+        return;
+      }
+      
+      const participant = JSON.parse(participantData);
+      
       // Calculer le temps pris pour répondre (en dixièmes de seconde)
       const timeTaken = Math.floor((Date.now() - startTime) / 100);
       
       const response = await api.post(`presentation/sessions/${sessionId}/answer`, {
         answer_ids: selectedAnswers,
-        time_taken: timeTaken
-      });
+        time_taken: timeTaken,
+        participant_id: participant.participant_id
+      }, { skipAuth: true });
       
       if (response.success && response.data) {
         setResults(response.data);

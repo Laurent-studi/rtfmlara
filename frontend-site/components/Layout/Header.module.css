@@ -3,15 +3,15 @@
   top: 0;
   z-index: 50;
   backdrop-filter: blur(12px);
-  background: rgba(var(--background-rgb, 255, 255, 255), 0.85);
-  border-bottom: 1px solid var(--border, rgba(0, 0, 0, 0.1));
+  background: rgba(var(--color-background) / 0.85);
+  border-bottom: 1px solid var(--color-border);
   transition: all 0.3s ease;
   box-shadow: 0 1px 10px rgba(0, 0, 0, 0.05);
 }
 
 .headerScrolled {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
-  background: rgba(var(--background-rgb, 255, 255, 255), 0.95);
+  background: rgba(var(--color-background) / 0.95);
 }
 
 .headerContainer {
@@ -47,7 +47,7 @@
 .logoText {
   font-weight: 700;
   font-size: 1.25rem;
-  background: linear-gradient(90deg, var(--primary, #ff7800), var(--secondary, #7c3aed));
+  background: linear-gradient(90deg, var(--color-primary), var(--color-secondary));
   -webkit-background-clip: text;
   color: transparent;
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
@@ -62,7 +62,7 @@
 
 .navItem {
   position: relative;
-  color: var(--foreground, #000);
+  color: var(--color-foreground);
   font-weight: 500;
   font-size: 0.95rem;
   padding: 0.5rem 0;
@@ -76,13 +76,13 @@
   height: 2px;
   bottom: 0;
   left: 0;
-  background: var(--primary, #ff7800);
+  background: var(--color-primary);
   transition: width 0.3s ease;
   border-radius: 4px;
 }
 
 .navItem:hover {
-  color: var(--primary, #ff7800);
+  color: var(--color-primary);
 }
 
 .navItem:hover::after {
@@ -90,7 +90,7 @@
 }
 
 .navItemActive {
-  color: var(--primary, #ff7800);
+  color: var(--color-primary);
 }
 
 .navItemActive::after {
@@ -99,37 +99,37 @@
 
 .navButton {
   padding: 0.5rem 1.25rem;
-  background: var(--primary, #ff7800);
-  color: var(--primary-foreground, #fff);
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
   border-radius: 8px;
   font-weight: 600;
   font-size: 0.9rem;
   transition: all 0.3s ease;
   border: 2px solid transparent;
-  box-shadow: 0 4px 12px rgba(var(--primary-rgb, 255, 120, 0), 0.2);
+  box-shadow: 0 4px 12px rgba(var(--color-primary) / 0.2);
 }
 
 .navButton:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(var(--primary-rgb, 255, 120, 0), 0.3);
+  box-shadow: 0 6px 16px rgba(var(--color-primary) / 0.3);
 }
 
 .navButtonOutline {
   padding: 0.5rem 1.25rem;
   background: transparent;
-  color: var(--primary, #ff7800);
+  color: var(--color-primary);
   border-radius: 8px;
   font-weight: 600;
   font-size: 0.9rem;
   transition: all 0.3s ease;
-  border: 2px solid var(--primary, #ff7800);
+  border: 2px solid var(--color-primary);
 }
 
 .navButtonOutline:hover {
-  background: var(--primary, #ff7800);
-  color: var(--primary-foreground, #fff);
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(var(--primary-rgb, 255, 120, 0), 0.2);
+  box-shadow: 0 4px 12px rgba(var(--color-primary) / 0.2);
 }
 
 .themeSelector {
@@ -144,16 +144,16 @@
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 50%;
-  background: var(--card, rgba(255, 255, 255, 0.8));
-  border: 1px solid var(--border, rgba(0, 0, 0, 0.1));
-  color: var(--foreground, #000);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  color: var(--color-foreground);
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .themeSelectButton:hover {
-  background: var(--primary, #ff7800);
-  color: var(--primary-foreground, #fff);
+  background: var(--color-primary);
+  color: var(--color-primary-foreground);
   transform: rotate(30deg);
 }
 
@@ -162,8 +162,8 @@
   top: 100%;
   right: 0;
   margin-top: 0.5rem;
-  background: var(--card, rgba(255, 255, 255, 0.8));
-  border: 1px solid var(--border, rgba(0, 0, 0, 0.1));
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
   border-radius: 8px;
   padding: 0.5rem;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
@@ -175,9 +175,9 @@
 .themeSelect {
   width: 100%;
   padding: 0.5rem;
-  background: var(--background, #fff);
-  border: 1px solid var(--border, rgba(0, 0, 0, 0.1));
-  color: var(--foreground, #000);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  color: var(--color-foreground);
   border-radius: 6px;
   font-size: 0.9rem;
   cursor: pointer;
@@ -191,7 +191,7 @@
 }
 
 .themeSelect:hover {
-  border-color: var(--primary, #ff7800);
+  border-color: var(--color-primary);
 }
 
 /* Menu mobile */

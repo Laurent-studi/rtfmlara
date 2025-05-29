@@ -122,7 +122,7 @@ export default function PlayQuizPage() {
       // Pour une question à choix multiples, toutes les bonnes réponses doivent être sélectionnées
       // et aucune mauvaise réponse ne doit être sélectionnée
       if (currentQuestion.multiple_answers) {
-        const allCorrectSelected = correctAnswerIds.every(id => selectedAnswers.includes(id));
+        const allCorrectSelected = correctAnswerIds.every((id: number) => selectedAnswers.includes(id));
         const noIncorrectSelected = selectedAnswers.every(id => correctAnswerIds.includes(id));
         isCorrect = allCorrectSelected && noIncorrectSelected;
       } else {

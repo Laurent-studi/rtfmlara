@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ShineBorder } from '@/components/magicui/shine-border';
 import { api } from '@/lib/api';
+import { API_ENDPOINTS } from '@/lib/api/endpoints';
 
 interface Quiz {
   id: number;
@@ -17,18 +18,28 @@ interface Quiz {
   created_at: string;
 }
 
+interface QuizSession {
+  id: number;
+  quiz: Quiz;
+  score: number;
+  completed_at: string;
+  total_questions: number;
+  correct_answers: number;
+}
+
 export default function QuizHistoryPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [myQuizzes, setMyQuizzes] = useState<Quiz[]>([]);
-  const [participatedQuizzes, setParticipatedQuizzes] = useState<any[]>([]);
+  const [participatedQuizzes, setParticipatedQuizzes] = useState<QuizSession[]>([]);
   const [activeTab, setActiveTab] = useState<'created' | 'participated'>('created');
+  const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
     // Vérifier l'authentification
     const token = localStorage.getItem('auth_token');
     if (!token) {
-      router.push('/auth');
+      router.push('/auth/login');
       return;
     }
     
@@ -36,20 +47,59 @@ export default function QuizHistoryPage() {
     const fetchData = async () => {
       try {
         setIsLoading(true);
+        setError(null);
         
         // Charger les quiz créés par l'utilisateur
-        const myQuizzesResponse = await api.get('quizzes');
+        const myQuizzesResponse = await api.get(API_ENDPOINTS.quiz.list);
         if (myQuizzesResponse.success && myQuizzesResponse.data) {
-          setMyQuizzes(myQuizzesResponse.data.data || []);
+          setMyQuizzes(myQuizzesResponse.data.data || myQuizzesResponse.data);
         }
         
-        // Charger les quiz auxquels l'utilisateur a participé
-        const sessionsResponse = await api.get('quiz-sessions');
+        // Charger les sessions de quiz auxquelles l'utilisateur a participé
+        const sessionsResponse = await api.get(API_ENDPOINTS.sessions.list);
         if (sessionsResponse.success && sessionsResponse.data) {
-          setParticipatedQuizzes(sessionsResponse.data || []);
+          setParticipatedQuizzes(sessionsResponse.data);
         }
       } catch (error) {
         console.error('Erreur lors du chargement des données:', error);
+        setError('Erreur lors du chargement de l\'historique');
+        
+        // Données de fallback
+        const mockQuizzes = [
+          {
+            id: 1,
+            title: 'Quiz JavaScript',
+            description: 'Test de connaissances JavaScript',
+            category: 'Programmation',
+            status: 'active',
+            code: 'JS001',
+            questions_count: 10,
+            created_at: '2023-10-15T10:30:00'
+          }
+        ];
+        
+        const mockSessions = [
+          {
+            id: 1,
+            quiz: {
+              id: 2,
+              title: 'Quiz CSS',
+              description: 'Test de connaissances CSS',
+              category: 'Web Design',
+              status: 'active',
+              code: 'CSS001',
+              questions_count: 8,
+              created_at: '2023-10-10T14:20:00'
+            },
+            score: 85,
+            completed_at: '2023-10-16T15:45:00',
+            total_questions: 8,
+            correct_answers: 7
+          }
+        ];
+        
+        setMyQuizzes(mockQuizzes);
+        setParticipatedQuizzes(mockSessions);
       } finally {
         setIsLoading(false);
       }
@@ -230,14 +280,14 @@ export default function QuizHistoryPage() {
                         <div className="text-gray-400 text-xs">{session.quiz.category || 'Non catégorisé'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-gray-300">
-                        {formatDate(session.created_at)}
+                        {formatDate(session.completed_at)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-white font-medium">{session.score} pts</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-500/20 text-indigo-400">
-                          {session.position || '-'} / {session.total_participants || '-'}
+                          {session.correct_answers} / {session.total_questions}
                         </div>
                       </td>
                     </tr>

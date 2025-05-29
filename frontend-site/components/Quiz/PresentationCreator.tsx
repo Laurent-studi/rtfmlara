@@ -35,13 +35,25 @@ export default function PresentationCreator({ quiz, onCancel }: PresentationCrea
         }
       });
       
+      console.log('🔍 Réponse complète:', response);
+      
       if (response.success && response.data) {
-        // Rediriger vers la page de présentation
-        router.push(`/quiz/present/${response.data.session.id}`);
+        const sessionId = response.data.session?.id || response.data.id;
+        console.log('🎯 Session ID extrait:', sessionId);
+        
+        if (sessionId) {
+          // Rediriger vers la page de présentation
+          const url = `/quiz/present/${sessionId}`;
+          console.log('🚀 Navigation vers:', url);
+          router.push(url);
+        } else {
+          setError('ID de session manquant dans la réponse');
+        }
       } else {
         setError(response.message || 'Une erreur est survenue lors de la création de la session');
       }
     } catch (err: any) {
+      console.error('❌ Erreur lors de la création de la session:', err);
       setError(err.message || 'Une erreur est survenue lors de la création de la session');
     } finally {
       setIsLoading(false);

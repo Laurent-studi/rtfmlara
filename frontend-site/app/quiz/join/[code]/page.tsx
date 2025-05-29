@@ -29,19 +29,33 @@ export default function JoinQuizPage() {
       return;
     }
     
+    if (!pseudo || pseudo.trim().length < 2) {
+      setError('Veuillez saisir un pseudo d\'au moins 2 caractères');
+      return;
+    }
+    
     try {
       setIsLoading(true);
       setError(null);
       
       const response = await api.post('presentation/join', {
         join_code: joinCode,
-        pseudo: pseudo || undefined
-      });
+        pseudo: pseudo.trim()
+      }, { skipAuth: true });
       
       if (response.success && response.data) {
         setSessionInfo(response.data);
+        
+        // Stocker les informations du participant dans le localStorage pour la session
+        localStorage.setItem('participant_session', JSON.stringify({
+          participant_id: response.data.participant.id,
+          session_id: response.data.session.id,
+          pseudo: response.data.participant.pseudo,
+          is_anonymous: response.data.is_anonymous
+        }));
+        
         // Redirection vers la page de participation
-        router.push(`/quiz/participate/${response.data.session.id}`);
+        router.push(`/quiz/participate/${response.data.session.id}?participant=${response.data.participant.id}`);
       } else {
         setError(response.message || 'Erreur lors de la connexion à la session');
       }
@@ -93,7 +107,7 @@ export default function JoinQuizPage() {
           
           <div>
             <label htmlFor="pseudo" className="block text-gray-300 text-sm font-medium mb-2">
-              Pseudo (optionnel)
+              Pseudo (obligatoire)
             </label>
             <input
               id="pseudo"
@@ -103,6 +117,9 @@ export default function JoinQuizPage() {
               placeholder="Comment souhaitez-vous être appelé?"
               className="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               disabled={isLoading}
+              required
+              minLength={2}
+              maxLength={50}
             />
           </div>
           

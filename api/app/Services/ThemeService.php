@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\Theme;
-use App\Models\UserPreference;
+use App\Models\UserTheme;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Collection;
@@ -46,10 +46,12 @@ class ThemeService
             return $this->getDefaultTheme();
         }
         
-        $preference = UserPreference::where('user_id', $userId)->first();
+        $userTheme = UserTheme::where('user_id', $userId)
+            ->orderBy('applied_at', 'desc')
+            ->first();
         
-        if ($preference && $preference->theme_id) {
-            return Theme::find($preference->theme_id);
+        if ($userTheme && $userTheme->theme_id) {
+            return Theme::find($userTheme->theme_id);
         }
         
         return $this->getDefaultTheme();
@@ -72,9 +74,17 @@ class ThemeService
             return false;
         }
         
-        $preference = UserPreference::firstOrNew(['user_id' => $userId]);
-        $preference->theme_id = $themeId;
-        return $preference->save();
+        // Supprimer l'ancien thème de l'utilisateur s'il existe
+        UserTheme::where('user_id', $userId)->delete();
+        
+        // Créer une nouvelle entrée pour le nouveau thème
+        $userTheme = UserTheme::create([
+            'user_id' => $userId,
+            'theme_id' => $themeId,
+            'applied_at' => now()
+        ]);
+        
+        return $userTheme !== null;
     }
 
     /**
@@ -88,14 +98,10 @@ class ThemeService
             return false;
         }
         
-        $preference = UserPreference::where('user_id', $userId)->first();
+        // Supprimer tous les thèmes de l'utilisateur pour revenir au thème par défaut
+        $deleted = UserTheme::where('user_id', $userId)->delete();
         
-        if (!$preference) {
-            return true; // Déjà sur le thème par défaut
-        }
-        
-        $preference->theme_id = null;
-        return $preference->save();
+        return true; // Toujours retourner true car même s'il n'y avait rien à supprimer, l'utilisateur est maintenant sur le thème par défaut
     }
 
     /**
@@ -170,9 +176,8 @@ class ThemeService
             return false;
         }
         
-        // Mettre à jour les préférences des utilisateurs qui utilisaient ce thème
-        UserPreference::where('theme_id', $themeId)
-            ->update(['theme_id' => null]);
+        // Supprimer les associations des utilisateurs qui utilisaient ce thème
+        UserTheme::where('theme_id', $themeId)->delete();
         
         $theme->delete();
         

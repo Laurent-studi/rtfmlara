@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import CreateQuizForm from '@/components/Quiz/CreateQuizForm';
 import QuestionManager from '@/components/Quiz/QuestionManager';
-import NeonThemeWrapper from '@/components/Layout/NeonThemeWrapper';
 
 export default function CreateQuizPage() {
   const router = useRouter();
@@ -21,23 +20,20 @@ export default function CreateQuizPage() {
   };
   
   return (
-    <NeonThemeWrapper>
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-6">Créer un Quiz</h1>
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-6">Créer un Quiz</h1>
+      
+      <div className="card p-6">
+        <h2 className="text-xl font-semibold mb-4">Informations du Quiz</h2>
         
-        <div className="card p-6">
-          <h2 className="text-xl font-semibold mb-4">Informations du Quiz</h2>
-          <p className="mb-4">Cette page utilise automatiquement le thème Néon.</p>
-          
-          {!createdQuiz ? (
-            // Formulaire de création de quiz
-            <CreateQuizForm onSuccess={handleQuizCreated} />
-          ) : (
-            // Gestionnaire de questions (uniquement pour les quiz manuels)
-            <QuestionManager quiz={createdQuiz} onFinish={handleFinishQuiz} />
-          )}
-        </div>
+        {!createdQuiz ? (
+          // Formulaire de création de quiz
+          <CreateQuizForm onSuccess={handleQuizCreated} />
+        ) : (
+          // Gestionnaire de questions (uniquement pour les quiz manuels)
+          <QuestionManager quiz={createdQuiz} onFinish={handleFinishQuiz} />
+        )}
       </div>
-    </NeonThemeWrapper>
+    </div>
   );
 }

@@ -255,15 +255,18 @@ class PresentationController extends Controller
         $session = QuizSession::findOrFail($sessionId);
         $user = Auth::user();
 
-        // Vérifier que l'utilisateur est le présentateur ou un participant
-        $isParticipant = $session->participants()->where('user_id', $user->id)->exists();
-        
-        if ($session->presenter_id !== $user->id && !$isParticipant) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Vous n\'êtes pas autorisé à voir ce classement'
-            ], Response::HTTP_FORBIDDEN);
+        // Pour les utilisateurs connectés, vérifier qu'ils sont autorisés
+        if ($user) {
+            $isParticipant = $session->participants()->where('user_id', $user->id)->exists();
+            
+            if ($session->presenter_id !== $user->id && !$isParticipant) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Vous n\'êtes pas autorisé à voir ce classement'
+                ], Response::HTTP_FORBIDDEN);
+            }
         }
+        // Pour les utilisateurs anonymes, permettre l'accès au classement public
 
         return response()->json([
             'success' => true,
@@ -289,7 +292,7 @@ class PresentationController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'join_code' => 'required|string|size:6',
-            'pseudo' => 'nullable|string|max:50'
+            'pseudo' => 'required|string|max:50|min:2'
         ]);
 
         if ($validator->fails()) {
@@ -302,7 +305,7 @@ class PresentationController extends Controller
 
         // Rechercher la session avec ce code
         $session = QuizSession::where('join_code', $request->join_code)
-            ->where('status', 'in', ['pending', 'active'])
+            ->whereIn('status', ['pending', 'active'])
             ->first();
             
         if (!$session) {
@@ -312,41 +315,61 @@ class PresentationController extends Controller
             ], Response::HTTP_NOT_FOUND);
         }
 
+        // Récupérer l'utilisateur s'il est connecté (optionnel)
         $user = Auth::user();
+        $userId = $user ? $user->id : null;
 
-        // Vérifier si l'utilisateur a déjà rejoint cette session
-        $existingParticipant = Participant::where([
+        // Vérifier si l'utilisateur connecté a déjà rejoint cette session
+        if ($userId) {
+            $existingParticipant = Participant::where([
+                'quiz_session_id' => $session->id,
+                'user_id' => $userId
+            ])->first();
+
+            if ($existingParticipant) {
+                // Si l'utilisateur a déjà rejoint, le réactiver
+                $existingParticipant->is_active = true;
+                $existingParticipant->pseudo = $request->pseudo; // Mettre à jour le pseudo
+                $existingParticipant->save();
+                
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Vous avez rejoint à nouveau la session',
+                    'data' => [
+                        'session' => [
+                            'id' => $session->id,
+                            'status' => $session->status,
+                            'quiz' => [
+                                'id' => $session->quiz->id,
+                                'title' => $session->quiz->title
+                            ]
+                        ],
+                        'participant' => $existingParticipant,
+                        'is_anonymous' => false
+                    ]
+                ]);
+            }
+        }
+
+        // Vérifier si le pseudo est déjà utilisé dans cette session
+        $pseudoExists = Participant::where([
             'quiz_session_id' => $session->id,
-            'user_id' => $user->id
-        ])->first();
+            'pseudo' => $request->pseudo,
+            'is_active' => true
+        ])->exists();
 
-        if ($existingParticipant) {
-            // Si l'utilisateur a déjà rejoint, le réactiver
-            $existingParticipant->is_active = true;
-            $existingParticipant->save();
-            
+        if ($pseudoExists) {
             return response()->json([
-                'success' => true,
-                'message' => 'Vous avez rejoint à nouveau la session',
-                'data' => [
-                    'session' => [
-                        'id' => $session->id,
-                        'status' => $session->status,
-                        'quiz' => [
-                            'id' => $session->quiz->id,
-                            'title' => $session->quiz->title
-                        ]
-                    ],
-                    'participant' => $existingParticipant
-                ]
-            ]);
+                'success' => false,
+                'message' => 'Ce pseudo est déjà utilisé dans cette session. Veuillez en choisir un autre.'
+            ], Response::HTTP_CONFLICT);
         }
 
         // Créer un nouveau participant
         $participant = new Participant();
         $participant->quiz_session_id = $session->id;
-        $participant->user_id = $user->id;
-        $participant->pseudo = $request->pseudo ?? $user->name;
+        $participant->user_id = $userId; // Peut être null pour les utilisateurs anonymes
+        $participant->pseudo = $request->pseudo;
         $participant->score = 0;
         $participant->joined_at = Carbon::now();
         $participant->is_active = true;
@@ -365,7 +388,8 @@ class PresentationController extends Controller
                         'title' => $session->quiz->title
                     ]
                 ],
-                'participant' => $participant
+                'participant' => $participant,
+                'is_anonymous' => !$userId
             ]
         ], Response::HTTP_CREATED);
     }
@@ -382,7 +406,8 @@ class PresentationController extends Controller
         $validator = Validator::make($request->all(), [
             'answer_ids' => 'required|array',
             'answer_ids.*' => 'required|integer|exists:answers,id',
-            'time_taken' => 'required|integer|min:0'
+            'time_taken' => 'required|integer|min:0',
+            'participant_id' => 'required|integer|exists:participants,id'
         ]);
 
         if ($validator->fails()) {
@@ -394,7 +419,6 @@ class PresentationController extends Controller
         }
 
         $session = QuizSession::findOrFail($sessionId);
-        $user = Auth::user();
 
         // Vérifier que la session est active
         if ($session->status !== 'active') {
@@ -404,17 +428,26 @@ class PresentationController extends Controller
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        // Vérifier que l'utilisateur est un participant
+        // Récupérer le participant par son ID
         $participant = Participant::where([
+            'id' => $request->participant_id,
             'quiz_session_id' => $session->id,
-            'user_id' => $user->id,
             'is_active' => true
         ])->first();
 
         if (!$participant) {
             return response()->json([
                 'success' => false,
-                'message' => 'Vous n\'êtes pas un participant actif de cette session'
+                'message' => 'Participant introuvable ou inactif dans cette session'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        // Vérification supplémentaire pour les utilisateurs connectés
+        $user = Auth::user();
+        if ($user && $participant->user_id && $participant->user_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vous n\'êtes pas autorisé à soumettre des réponses pour ce participant'
             ], Response::HTTP_FORBIDDEN);
         }
 
@@ -427,7 +460,7 @@ class PresentationController extends Controller
             ], Response::HTTP_BAD_REQUEST);
         }
 
-        // Vérifier que l'utilisateur n'a pas déjà répondu à cette question
+        // Vérifier que le participant n'a pas déjà répondu à cette question
         $hasAnswered = ParticipantAnswer::where([
             'participant_id' => $participant->id,
             'question_id' => $currentQuestion->id
@@ -436,7 +469,7 @@ class PresentationController extends Controller
         if ($hasAnswered) {
             return response()->json([
                 'success' => false,
-                'message' => 'Vous avez déjà répondu à cette question'
+                'message' => 'Ce participant a déjà répondu à cette question'
             ], Response::HTTP_CONFLICT);
         }
 
@@ -568,13 +601,157 @@ class PresentationController extends Controller
         $session = QuizSession::findOrFail($sessionId);
         $user = Auth::user();
 
-        // Vérifier que l'utilisateur est le présentateur ou un participant
-        $participant = $session->participants()->where('user_id', $user->id)->first();
+        $participant = null;
+        $isPresenter = false;
+        $isPublicAccess = false;
+
+        // Pour les utilisateurs connectés, vérifier qu'ils sont participants ou présentateurs
+        if ($user) {
+            $participant = $session->participants()->where('user_id', $user->id)->first();
+            
+            // Vérifier si l'utilisateur est le présentateur de la session
+            $isPresenter = ($session->presenter_id === $user->id);
+            
+            if ($participant) {
+                $isPresenter = $participant->is_presenter_mode;
+            }
+        } else {
+            // Pour les utilisateurs anonymes, permettre l'accès public aux sessions de présentation
+            $isPublicAccess = true;
+        }
+
+        $currentQuestion = null;
+        
+        if ($session->status === 'active') {
+            $questionObj = $session->getCurrentQuestion();
+            
+            if ($questionObj) {
+                $currentQuestion = [
+                    'id' => $questionObj->id,
+                    'text' => $questionObj->question_text,
+                    'multiple_answers' => $questionObj->multiple_answers,
+                    'points' => $questionObj->points,
+                    'order_index' => $questionObj->order_index
+                ];
+                
+                // Pour les présentateurs, ajouter les réponses avec indication des réponses correctes
+                if ($isPresenter) {
+                    $currentQuestion['answers'] = $questionObj->answers()
+                        ->select('id', 'answer_text', 'is_correct', 'explanation')
+                        ->get();
+                } else {
+                    // Pour les participants, seulement les réponses sans indication
+                    $currentQuestion['answers'] = $questionObj->answers()
+                        ->select('id', 'answer_text')
+                        ->get();
+                        
+                    // Vérifier si le participant a déjà répondu (seulement pour les utilisateurs connectés)
+                    if ($participant) {
+                        $hasAnswered = ParticipantAnswer::where([
+                            'participant_id' => $participant->id,
+                            'question_id' => $questionObj->id
+                        ])->exists();
+                        
+                        $currentQuestion['has_answered'] = $hasAnswered;
+                    }
+                }
+            }
+        }
+
+        $response = [
+            'success' => true,
+            'data' => [
+                'session' => [
+                    'id' => $session->id,
+                    'status' => $session->status,
+                    'join_code' => $session->join_code,
+                    'started_at' => $session->started_at,
+                    'ended_at' => $session->ended_at,
+                    'is_presentation_mode' => $session->is_presentation_mode,
+                    'question_index' => $session->current_question_index + 1,
+                    'total_questions' => $session->getTotalQuestionsCount()
+                ],
+                'current_question' => $currentQuestion
+            ]
+        ];
+        
+        // Ajouter les informations du participant seulement s'il existe
+        if ($participant) {
+            $response['data']['participant'] = [
+                'id' => $participant->id,
+                'score' => $participant->score,
+                'is_presenter' => $isPresenter
+            ];
+        }
+        
+        // Pour les présentateurs, les sessions terminées, ou l'accès public : ajouter le classement et les participants
+        if ($session->status === 'completed' || $isPresenter || $isPublicAccess) {
+            // Récupérer le leaderboard avec les informations des participants
+            $leaderboard = $session->participants()
+                ->where('is_presenter_mode', false)
+                ->where('is_active', true)
+                ->leftJoin('users', 'participants.user_id', '=', 'users.id')
+                ->select(
+                    'participants.id as participant_id',
+                    'participants.pseudo as participant_name',
+                    'participants.user_id',
+                    'participants.score',
+                    'participants.joined_at',
+                    'users.username as user_name'
+                )
+                ->orderBy('participants.score', 'desc')
+                ->orderBy('participants.joined_at', 'asc')
+                ->get()
+                ->map(function($participant) {
+                    return [
+                        'participant_id' => $participant->participant_id,
+                        'name' => $participant->user_name ?: $participant->participant_name,
+                        'user_id' => $participant->user_id,
+                        'score' => $participant->score,
+                        'joined_at' => $participant->joined_at,
+                        'level' => rand(1, 20), // Niveau aléatoire pour l'instant
+                        'badges' => $participant->score > 0 ? ['⭐'] : []
+                    ];
+                });
+            
+            $response['data']['leaderboard'] = $leaderboard;
+            $response['data']['participants_count'] = $leaderboard->count();
+        }
+
+        return response()->json($response);
+    }
+
+    /**
+     * Obtient l'état actuel d'une session de présentation pour un participant spécifique.
+     *
+     * @param  int  $sessionId
+     * @param  int  $participantId
+     * @return \Illuminate\Http\Response
+     */
+    public function getParticipantSessionState($sessionId, $participantId)
+    {
+        $session = QuizSession::findOrFail($sessionId);
+
+        // Récupérer le participant par son ID
+        $participant = Participant::where([
+            'id' => $participantId,
+            'quiz_session_id' => $session->id,
+            'is_active' => true
+        ])->first();
         
         if (!$participant) {
             return response()->json([
                 'success' => false,
-                'message' => 'Vous n\'êtes pas autorisé à accéder à cette session'
+                'message' => 'Participant introuvable ou inactif dans cette session'
+            ], Response::HTTP_FORBIDDEN);
+        }
+
+        // Vérification supplémentaire pour les utilisateurs connectés
+        $user = Auth::user();
+        if ($user && $participant->user_id && $participant->user_id !== $user->id) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Vous n\'êtes pas autorisé à accéder aux données de ce participant'
             ], Response::HTTP_FORBIDDEN);
         }
 
@@ -621,6 +798,7 @@ class PresentationController extends Controller
                 'session' => [
                     'id' => $session->id,
                     'status' => $session->status,
+                    'join_code' => $session->join_code,
                     'started_at' => $session->started_at,
                     'ended_at' => $session->ended_at,
                     'is_presentation_mode' => $session->is_presentation_mode,
@@ -629,8 +807,10 @@ class PresentationController extends Controller
                 ],
                 'participant' => [
                     'id' => $participant->id,
+                    'pseudo' => $participant->pseudo,
                     'score' => $participant->score,
-                    'is_presenter' => $isPresenter
+                    'is_presenter' => $isPresenter,
+                    'is_anonymous' => !$participant->user_id
                 ],
                 'current_question' => $currentQuestion
             ]

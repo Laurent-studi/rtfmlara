@@ -68,16 +68,20 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
         <div className={styles.authContent}>
           <div className="relative w-full max-w-[450px]">
             <motion.div
-              className={styles.authCard}
+              className={`${styles.authCard} relative`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
             >
-              {/* Ajouter aussi un ShineBorder plus petit pour la carte */}
+              {/* BorderBeam appliqué directement sur la carte */}
+              <BorderBeam 
+                size={600}
+                duration={8}
+                colorFrom={shineColors[0]}
+                colorTo={shineColors[5]}
+                delay={0}
+              />
               
-              <div className="relative h-[500px] w-full overflow-hidden">
-                <BorderBeam /> 
-              </div>
               {/* Effet de brillance supplémentaire (notre effet personnalisé) */}
               <div className={styles.authCardShine}></div>
             
@@ -107,6 +111,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
             </motion.div>
           </div>
           </div>
+          
         </div>
       </div>
   );

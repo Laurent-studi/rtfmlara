@@ -7,20 +7,28 @@ import { api } from '@/lib/api';
 
 interface CreateQuizFormProps {
   onSuccess?: (quiz: any) => void;
+  onQuizCreated?: (quiz: any) => void;
+  initialData?: any;
+  isEditing?: boolean;
 }
 
-export default function CreateQuizForm({ onSuccess }: CreateQuizFormProps) {
+export default function CreateQuizForm({ 
+  onSuccess, 
+  onQuizCreated, 
+  initialData, 
+  isEditing = false 
+}: CreateQuizFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [quizType, setQuizType] = useState<'manual' | 'random'>('manual');
   
   // État pour le formulaire de quiz standard
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('');
-  const [timePerQuestion, setTimePerQuestion] = useState(30);
-  const [code, setCode] = useState('');
+  const [title, setTitle] = useState(initialData?.title || '');
+  const [description, setDescription] = useState(initialData?.description || '');
+  const [category, setCategory] = useState(initialData?.category || '');
+  const [timePerQuestion, setTimePerQuestion] = useState(initialData?.time_limit || 30);
+  const [code, setCode] = useState(initialData?.code || '');
   
   // État supplémentaire pour le quiz aléatoire
   const [numberOfQuestions, setNumberOfQuestions] = useState(10);
@@ -47,7 +55,16 @@ export default function CreateQuizForm({ onSuccess }: CreateQuizFormProps) {
     try {
       let response;
       
-      if (quizType === 'manual') {
+      if (isEditing && initialData?.id) {
+        // Modifier un quiz existant
+        response = await api.put(`quizzes/${initialData.id}`, {
+          title,
+          description,
+          category,
+          time_per_question: timePerQuestion,
+          code: code || undefined
+        });
+      } else if (quizType === 'manual') {
         // Créer un quiz standard
         response = await api.post('quizzes', {
           title,
@@ -72,24 +89,29 @@ export default function CreateQuizForm({ onSuccess }: CreateQuizFormProps) {
       }
       
       if (response.success && response.data) {
-        setSuccess('Quiz créé avec succès!');
+        setSuccess(isEditing ? 'Quiz modifié avec succès!' : 'Quiz créé avec succès!');
         
-        // Reset form
-        setTitle('');
-        setDescription('');
-        setCategory('');
-        setTimePerQuestion(30);
-        setNumberOfQuestions(10);
+        if (!isEditing) {
+          // Reset form seulement en création
+          setTitle('');
+          setDescription('');
+          setCategory('');
+          setTimePerQuestion(30);
+          setNumberOfQuestions(10);
+        }
         
         // Callback de succès
         if (onSuccess) {
           onSuccess(response.data);
         }
+        if (onQuizCreated) {
+          onQuizCreated(response.data);
+        }
       } else {
         setError(response.message || 'Une erreur est survenue');
       }
     } catch (err: any) {
-      setError(err.message || 'Une erreur est survenue lors de la création du quiz');
+      setError(err.message || `Une erreur est survenue lors de ${isEditing ? 'la modification' : 'la création'} du quiz`);
     } finally {
       setIsLoading(false);
     }
@@ -114,9 +136,14 @@ export default function CreateQuizForm({ onSuccess }: CreateQuizFormProps) {
       <ShineBorder borderWidth={1} duration={14} shineColor={["#4f46e5", "#7c3aed", "#ec4899"]} />
       
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-white mb-2">Créer un nouveau quiz</h1>
+        <h1 className="text-3xl font-bold text-white mb-2">
+          {isEditing ? 'Modifier le quiz' : 'Créer un nouveau quiz'}
+        </h1>
         <p className="text-gray-300">
-          Créez votre propre quiz pour défier vos amis et la communauté
+          {isEditing 
+            ? 'Modifiez les informations de votre quiz'
+            : 'Créez votre propre quiz pour défier vos amis et la communauté'
+          }
         </p>
       </div>
       

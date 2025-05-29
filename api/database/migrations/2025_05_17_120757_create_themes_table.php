@@ -15,7 +15,6 @@ return new class extends Migration
             $table->id();
             $table->string('name', 100); // Nom affiché du thème
             $table->string('code', 50)->unique(); // ex: 'dark', 'light', 'neon'
-            $table->string('filename', 100); // ex: 'dark.css', 'light.css'
             $table->string('description')->nullable();
             $table->boolean('is_default')->default(false); // Thème par défaut
             $table->boolean('is_active')->default(true); // Thème activé ou non

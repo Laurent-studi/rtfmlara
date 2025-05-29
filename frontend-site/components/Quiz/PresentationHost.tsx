@@ -1,12 +1,13 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShineBorder } from '@/components/magicui/shine-border';
 import WaitingRoom from './WaitingRoom';
 import ThreeDLeaderboard from './ThreeDLeaderboard';
+import ConnectionStatus from './ConnectionStatus';
 
 type PresentationState = 'loading' | 'waiting' | 'question' | 'leaderboard' | 'ended';
 
@@ -19,6 +20,7 @@ export default function PresentationHost({ sessionId }: PresentationHostProps) {
   const [state, setState] = useState<PresentationState>('loading');
   const [error, setError] = useState<string | null>(null);
   const [session, setSession] = useState<any>(null);
+  const [quiz, setQuiz] = useState<any>(null);
   const [currentQuestion, setCurrentQuestion] = useState<any>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [participants, setParticipants] = useState<number>(0);
@@ -29,15 +31,74 @@ export default function PresentationHost({ sessionId }: PresentationHostProps) {
   const [timerActive, setTimerActive] = useState<boolean>(false);
   const [showAnswers, setShowAnswers] = useState<boolean>(false);
   const [isLastQuestion, setIsLastQuestion] = useState<boolean>(false);
+  const [lastUpdate, setLastUpdate] = useState<number>(Date.now());
+  const [isPolling, setIsPolling] = useState<boolean>(false);
+  
+  // Refs pour éviter les dépendances circulaires
+  const currentQuestionRef = useRef(currentQuestion);
+  const timerActiveRef = useRef(timerActive);
+  const stateRef = useRef(state);
+  const quizRef = useRef(quiz);
+  const isLoadingRef = useRef(false);
+  
+  // Mettre à jour les refs
+  useEffect(() => {
+    currentQuestionRef.current = currentQuestion;
+  }, [currentQuestion]);
+  
+  useEffect(() => {
+    timerActiveRef.current = timerActive;
+  }, [timerActive]);
+  
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+  
+  useEffect(() => {
+    quizRef.current = quiz;
+  }, [quiz]);
 
   // Fonction pour récupérer l'état actuel de la session
-  const fetchSessionState = useCallback(async () => {
+  const fetchSessionState = useCallback(async (skipTimerCheck = false, fetchQuizData = false) => {
+    // Éviter les appels simultanés
+    if (isLoadingRef.current) {
+      console.log('🔄 Requête déjà en cours, ignorée');
+      return;
+    }
+    
+    isLoadingRef.current = true;
+    setIsPolling(true);
+    
     try {
+      console.log(`🔍 Récupération de l'état de la session ${sessionId}`);
       const response = await api.get(`presentation/sessions/${sessionId}`);
       
+      console.log('📊 Réponse complète de l\'API:', response);
+      
       if (response.success && response.data) {
-        setSession(response.data.session);
-        setParticipants(response.data.participants_count || 0);
+        const newSession = response.data.session;
+        const newParticipantsCount = response.data.participants_count || 0;
+        
+        console.log('📋 Session:', newSession);
+        console.log('👥 Nombre de participants:', newParticipantsCount);
+        console.log('🏆 Leaderboard:', response.data.leaderboard);
+        console.log('👤 Participants directs:', response.data.participants);
+        
+        setSession(newSession);
+        setParticipants(newParticipantsCount);
+        setLastUpdate(Date.now());
+        
+        // Récupérer les données du quiz si nécessaire (seulement au premier chargement)
+        if (fetchQuizData && newSession.quiz_id && !quizRef.current) {
+          try {
+            const quizResponse = await api.get(`quizzes/${newSession.quiz_id}`);
+            if (quizResponse.success) {
+              setQuiz(quizResponse.data);
+            }
+          } catch (quizError) {
+            console.error('Erreur lors du chargement du quiz:', quizError);
+          }
+        }
         
         // Récupérer la liste des participants pour la salle d'attente
         if (response.data.leaderboard) {
@@ -46,31 +107,51 @@ export default function PresentationHost({ sessionId }: PresentationHostProps) {
           // Transformer le leaderboard en liste de participants pour WaitingRoom
           const players = response.data.leaderboard.map((entry: any) => ({
             id: entry.participant_id.toString(),
-            name: entry.name,
-            isHost: entry.user_id === response.data.session.presenter_id
+            name: entry.name || entry.participant_name || `Participant ${entry.participant_id}`,
+            isHost: entry.user_id === newSession.presenter_id,
+            joinedAt: entry.joined_at || entry.created_at,
+            level: entry.level || Math.floor(Math.random() * 20) + 1, // Niveau aléatoire si pas disponible
+            badges: entry.badges || (entry.score > 0 ? ['⭐'] : []) // Badge si score > 0
           }));
+          console.log('🎮 Participants transformés depuis leaderboard:', players);
           setParticipantsList(players);
+        } else if (response.data.participants) {
+          // Si on a une liste de participants directe
+          const players = response.data.participants.map((participant: any) => ({
+            id: participant.id.toString(),
+            name: participant.name || participant.participant_name || `Participant ${participant.id}`,
+            isHost: participant.user_id === newSession.presenter_id,
+            joinedAt: participant.joined_at || participant.created_at,
+            level: participant.level || Math.floor(Math.random() * 20) + 1,
+            badges: participant.badges || (participant.score > 0 ? ['⭐'] : [])
+          }));
+          console.log('🎮 Participants transformés depuis participants:', players);
+          setParticipantsList(players);
+        } else {
+          console.log('⚠️ Aucune donnée de participants trouvée dans la réponse');
+          setParticipantsList([]);
         }
         
-        if (response.data.session.status === 'pending') {
+        if (newSession.status === 'pending') {
           setState('waiting');
-        } else if (response.data.session.status === 'active') {
+        } else if (newSession.status === 'active') {
           if (response.data.current_question) {
-            setCurrentQuestion(response.data.current_question);
-            setQuestionIndex(response.data.session.question_index);
-            setTotalQuestions(response.data.session.total_questions);
+            const newQuestion = response.data.current_question;
+            setCurrentQuestion(newQuestion);
+            setQuestionIndex(newSession.question_index);
+            setTotalQuestions(newSession.total_questions);
             setState('question');
             
-            // Initialiser le timer si c'est une nouvelle question
-            if (!timerActive) {
-              const secondsPerQuestion = session?.quiz?.time_per_question || 30;
+            // Initialiser le timer seulement si c'est une nouvelle question ou si on force la vérification
+            if ((skipTimerCheck || !timerActiveRef.current) && newQuestion.id !== currentQuestionRef.current?.id) {
+              const secondsPerQuestion = newSession?.quiz?.time_per_question || 30;
               setTimeLeft(secondsPerQuestion);
               setTimerActive(true);
             }
           } else {
             setState('leaderboard');
           }
-        } else if (response.data.session.status === 'completed') {
+        } else if (newSession.status === 'completed') {
           setState('ended');
         }
       } else {
@@ -78,20 +159,50 @@ export default function PresentationHost({ sessionId }: PresentationHostProps) {
       }
     } catch (err: any) {
       setError(err.message || 'Erreur lors du chargement de la session');
+    } finally {
+      isLoadingRef.current = false;
+      setIsPolling(false);
     }
-  }, [sessionId, timerActive, session]);
+  }, [sessionId]);
 
   // Effet pour récupérer l'état initial
   useEffect(() => {
-    fetchSessionState();
+    fetchSessionState(false, true); // Récupérer aussi les données du quiz au premier chargement
+  }, []);
+
+  // Polling intelligent pour la salle d'attente
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
     
-    // Établir une actualisation régulière
-    const interval = setInterval(() => {
-      fetchSessionState();
-    }, 5000); // Toutes les 5 secondes
+    if (state === 'waiting') {
+      // Polling plus fréquent en salle d'attente pour voir les nouveaux participants
+      interval = setInterval(() => {
+        fetchSessionState(false, false);
+      }, 2000); // Toutes les 2 secondes en salle d'attente
+    }
     
-    return () => clearInterval(interval);
-  }, [fetchSessionState]);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [state, fetchSessionState]);
+
+  // Pas de polling automatique pour les autres états - le présentateur contrôle manuellement la session
+
+  // Arrêter le polling quand le composant est démonté ou la session terminée
+  useEffect(() => {
+    if (state === 'ended') {
+      // Nettoyer tous les timers actifs
+      setTimerActive(false);
+    }
+  }, [state]);
+
+  // Nettoyage lors du démontage du composant
+  useEffect(() => {
+    return () => {
+      // Nettoyer tous les timers lors du démontage
+      setTimerActive(false);
+    };
+  }, []);
 
   // Timer pour les questions
   useEffect(() => {
@@ -220,6 +331,46 @@ export default function PresentationHost({ sessionId }: PresentationHostProps) {
 
   return (
     <div className="relative min-h-[80vh]">
+      <ConnectionStatus
+        isConnected={!error}
+        isPolling={isPolling}
+        lastUpdate={lastUpdate}
+        error={error}
+      />
+      
+      {/* Boutons de test en mode développement */}
+      {process.env.NODE_ENV === 'development' && (
+        <div className="fixed bottom-4 left-4 space-y-2 z-50">
+          <button
+            onClick={() => {
+              const newParticipant = {
+                id: (participantsList.length + 1).toString(),
+                name: `Test User ${participantsList.length + 1}`,
+                isHost: false,
+                joinedAt: new Date().toISOString(),
+                level: Math.floor(Math.random() * 20) + 1,
+                badges: Math.random() > 0.5 ? ['⭐'] : []
+              };
+              setParticipantsList(prev => [...prev, newParticipant]);
+              setParticipants(prev => prev + 1);
+            }}
+            className="block w-full px-3 py-2 bg-blue-500/20 text-blue-300 rounded-lg border border-blue-500/50 hover:bg-blue-500/30 transition-all text-xs"
+          >
+            + Test User
+          </button>
+          
+          <button
+            onClick={() => {
+              console.log('🔄 Forcer la récupération des données');
+              fetchSessionState(false, false);
+            }}
+            className="block w-full px-3 py-2 bg-green-500/20 text-green-300 rounded-lg border border-green-500/50 hover:bg-green-500/30 transition-all text-xs"
+          >
+            🔄 Refresh
+          </button>
+        </div>
+      )}
+      
       <AnimatePresence mode="wait">
         {state === 'loading' && (
           <motion.div 
@@ -242,10 +393,13 @@ export default function PresentationHost({ sessionId }: PresentationHostProps) {
           >
             <WaitingRoom 
               players={participantsList}
-              quizUrl={`${window.location.origin}/quiz/join/${session.join_code}`}
-              quizCode={session.join_code}
+              quizUrl={`${window.location.origin}/quiz/join/${session.join_code || 'UNKNOWN'}`}
+              quizCode={session.join_code || 'UNKNOWN'}
               isHost={true}
               onStartQuiz={startSession}
+              quizTitle={quiz?.title || session?.quiz?.title || "Quiz Interactif"}
+              estimatedDuration={quiz?.time_per_question ? Math.ceil((quiz.questions?.length || totalQuestions || 10) * quiz.time_per_question / 60) : 15}
+              totalQuestions={quiz?.questions?.length || totalQuestions || 10}
             />
           </motion.div>
         )}

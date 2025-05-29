@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import AuthLayout from '../auth-layout';
+import { RainbowButton } from '@/components/magicui/rainbow-button';
 import styles from '../auth.module.css';
 
 export default function RegisterPage() {
@@ -202,26 +203,31 @@ export default function RegisterPage() {
           />
         </motion.div>
 
-        <motion.button
-          type="submit"
-          className={styles.formButton}
-          disabled={isLoading}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
+        <motion.div
           custom={4}
           variants={formVariants}
           initial="hidden"
           animate="visible"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
         >
-          {isLoading ? (
-            <>
-              <svg className={styles.spinner} width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeDasharray="32" strokeLinecap="round" />
-              </svg>
-              Inscription en cours...
-            </>
-          ) : 'S\'inscrire'}
-        </motion.button>
+          <RainbowButton
+            type="submit"
+            variant="outline"
+            size="lg"
+            className="w-full"
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <svg className={styles.spinner} width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeDasharray="32" strokeLinecap="round" />
+                </svg>
+                Inscription en cours...
+              </>
+            ) : 'S\'inscrire'}
+          </RainbowButton>
+        </motion.div>
         
         <motion.div 
           className={styles.authSwitchWrapper}

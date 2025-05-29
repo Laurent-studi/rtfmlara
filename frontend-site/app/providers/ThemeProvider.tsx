@@ -3,12 +3,11 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { api } from '@/lib/api';
 
-// Définition de l'interface Theme
+// Définition de l'interface Theme (sans filename car on utilise data-theme)
 interface Theme {
   id: number;
   name: string;
   code: string;
-  filename: string;
   description: string | null;
   is_default: boolean;
   is_active: boolean;
@@ -27,36 +26,32 @@ interface ThemeContextType {
 const defaultThemes: Theme[] = [
   {
     id: 1,
-    name: 'Light',
+    name: 'Clair',
     code: 'light',
-    filename: 'light.css',
     description: 'Thème clair par défaut',
     is_default: true,
     is_active: true
   },
   {
     id: 2,
-    name: 'Dark',
+    name: 'Sombre',
     code: 'dark',
-    filename: 'dark.css',
     description: 'Thème sombre',
     is_default: false,
     is_active: true
   },
   {
     id: 3,
-    name: 'Neon',
+    name: 'Néon',
     code: 'neon',
-    filename: 'neon.css',
     description: 'Thème néon vibrant',
     is_default: false,
     is_active: true
   },
   {
     id: 4,
-    name: 'Elegant',
+    name: 'Élégant',
     code: 'elegant',
-    filename: 'elegant.css',
     description: 'Thème élégant et minimaliste',
     is_default: false,
     is_active: true
@@ -65,7 +60,6 @@ const defaultThemes: Theme[] = [
     id: 5,
     name: 'Pastel',
     code: 'pastel',
-    filename: 'pastel.css',
     description: 'Thème aux couleurs pastel',
     is_default: false,
     is_active: true
@@ -74,7 +68,6 @@ const defaultThemes: Theme[] = [
     id: 6,
     name: 'Fun',
     code: 'fun',
-    filename: 'fun.css',
     description: 'Thème amusant et coloré',
     is_default: false,
     is_active: true
@@ -104,34 +97,22 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(false);
 
-  // Fonction pour appliquer le thème à l'élément HTML
+  // Fonction pour appliquer le thème à l'élément HTML (méthode data-theme uniquement)
   const applyTheme = (theme: Theme) => {
-    // 1. Définir l'attribut data-theme pour Tailwind 4
+    // 1. Définir l'attribut data-theme pour les variables CSS dans globals.css
     document.documentElement.setAttribute('data-theme', theme.code);
     
-    // Définir également l'attribut theme-name pour la rétrocompatibilité
-    document.documentElement.setAttribute('theme-name', theme.code);
-    
-    // Ajouter la classe du thème pour s'assurer que les styles sont appliqués
+    // 2. Ajouter la classe du thème pour la compatibilité
     document.documentElement.classList.remove('light', 'dark', 'neon', 'elegant', 'pastel', 'fun');
     document.documentElement.classList.add(theme.code);
     
-    // 2. Charger la feuille de style CSS du thème
+    // 3. Supprimer tout ancien lien de feuille de style de thème (plus nécessaire)
     const existingLink = document.getElementById('theme-stylesheet');
-    
     if (existingLink) {
-      // Mettre à jour le lien existant
-      existingLink.setAttribute('href', `/css/themes/${theme.filename}`);
-    } else {
-      // Créer un nouveau lien
-      const link = document.createElement('link');
-      link.id = 'theme-stylesheet';
-      link.rel = 'stylesheet';
-      link.href = `/css/themes/${theme.filename}`;
-      document.head.appendChild(link);
+      existingLink.remove();
     }
 
-    // 3. Définir également le localStorage pour la persistance
+    // 4. Définir le localStorage pour la persistance
     localStorage.setItem('theme', theme.code);
     
     console.log(`Thème appliqué: ${theme.name} (${theme.code})`);
@@ -159,16 +140,17 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       applyTheme(theme);
       setCurrentTheme(theme);
       
-      // Ne pas essayer de sauvegarder sur le serveur si en mode local/développement
-      const isLocalMode = process.env.NODE_ENV === 'development';
-      
-      // Enregistrer la préférence sur le serveur uniquement si connecté et pas en mode local
-      if (!isLocalMode) {
+      // Vérifier si l'utilisateur est authentifié avant de sauvegarder sur le serveur
+      const authToken = localStorage.getItem('auth_token');
+      if (authToken) {
         try {
-          await api.saveUserTheme(themeId);
+          await api.post('themes/apply', { theme_id: themeId });
+          console.log(`Préférence de thème sauvegardée sur le serveur: ${theme.name}`);
         } catch (error) {
           console.warn('Impossible de sauvegarder la préférence de thème sur le serveur:', error);
         }
+      } else {
+        console.log('Utilisateur non connecté - thème sauvegardé localement uniquement');
       }
     } catch (error) {
       console.error('Erreur lors du changement de thème:', error);
@@ -182,32 +164,21 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
     const fetchThemes = async () => {
       setIsLoading(true);
       try {
-        // Essayer d'abord l'API normale
-        const response = await api.getThemes();
-        if (response && response.data && response.data.length > 0) {
+        // Essayer de charger les thèmes depuis l'API
+        const response = await api.get('themes');
+        if (response && response.status === 'success' && response.data && response.data.length > 0) {
           setThemes(response.data);
+          setIsOffline(false);
           return;
         }
         
-        // Si la réponse est vide, essayer l'appel direct
-        const directResponse = await fetch('http://localhost:8000/api/themes');
-        if (directResponse.ok) {
-          const data = await directResponse.json();
-          if (data && data.data && data.data.length > 0) {
-            setThemes(data.data);
-            return;
-          }
-        }
-        
-        // Si toutes les tentatives échouent ou donnent des listes vides, utiliser les thèmes par défaut
-        console.warn('Aucun thème trouvé via API, utilisation des thèmes par défaut');
+        // Si l'API échoue, utiliser les thèmes par défaut
+        console.warn('API indisponible, utilisation des thèmes par défaut');
         setIsOffline(true);
-        // Assurer que defaultThemes est toujours utilisé en cas d'échec
         setThemes(defaultThemes);
       } catch (error) {
         console.warn('Impossible de charger les thèmes depuis l\'API, utilisation des thèmes par défaut:', error);
         setIsOffline(true);
-        // Assurer que defaultThemes est toujours utilisé en cas d'échec
         setThemes(defaultThemes);
       } finally {
         setIsLoading(false);
@@ -242,15 +213,11 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
       if (defaultTheme) {
         applyTheme(defaultTheme);
         setCurrentTheme(defaultTheme);
-      } else {
-        console.warn("Aucun thème par défaut trouvé, utilisation du premier thème disponible");
-        applyTheme(themes[0]);
-        setCurrentTheme(themes[0]);
       }
     };
 
     // Appliquer le thème initial seulement après avoir chargé les thèmes
-    if (!isLoading) {
+    if (!isLoading && themes.length > 0) {
       applyInitialTheme();
     }
   }, [isLoading, themes]);

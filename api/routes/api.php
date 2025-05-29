@@ -40,7 +40,7 @@ Route::get('/quizzes/categories', [QuizController::class, 'categories']);
 
 // Thèmes (publics)
 Route::get('/themes', [ThemeController::class, 'index']);
-Route::get('/themes/current', [SeasonalThemeController::class, 'getCurrentTheme']);
+Route::get('/themes/current', [ThemeController::class, 'getCurrentUserTheme']);
 Route::get('/themes/default', [ThemeController::class, 'default']);
 
 // Routes pour les tags (publiques)
@@ -79,16 +79,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/quiz-sessions/{session}/start', [QuizSessionController::class, 'start']);
     Route::post('/quiz-sessions/{session}/submit-answer', [QuizSessionController::class, 'submitAnswer']);
     
-    // Routes pour le mode présentation
+    // Routes pour le mode présentation (présentateur uniquement - authentification requise)
     Route::prefix('presentation')->group(function () {
         Route::post('/sessions', [PresentationController::class, 'createSession']);
-        Route::get('/sessions/{sessionId}', [PresentationController::class, 'getSessionState']);
         Route::post('/sessions/{sessionId}/start', [PresentationController::class, 'startPresentation']);
         Route::post('/sessions/{sessionId}/next', [PresentationController::class, 'nextQuestion']);
         Route::post('/sessions/{sessionId}/end', [PresentationController::class, 'endPresentation']);
-        Route::get('/sessions/{sessionId}/leaderboard', [PresentationController::class, 'showLeaderboard']);
-        Route::post('/join', [PresentationController::class, 'joinSession']);
-        Route::post('/sessions/{sessionId}/answer', [PresentationController::class, 'submitAnswer']);
     });
     
     // Battle Royale
@@ -172,8 +168,6 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Thèmes (routes protégées)
     Route::prefix('themes')->group(function () {
-        // Ces routes sont déjà définies en public: index, default
-        Route::get('/current', [ThemeController::class, 'getCurrentUserTheme']);
         Route::post('/', [ThemeController::class, 'store']);
         Route::get('/{id}', [ThemeController::class, 'show']);
         Route::put('/{id}', [ThemeController::class, 'update']);
@@ -213,9 +207,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/friends/unblock/{userId}', [FriendController::class, 'unblockUser']);
     Route::get('/friends/search', [FriendController::class, 'searchUsers']);
 
-    // Thèmes
-    Route::get('/user/theme', [ThemeController::class, 'getUserTheme']);
-    Route::post('/user/theme', [ThemeController::class, 'setUserTheme']);
+
     
     // Administration (protégé par role admin)
     Route::prefix('admin')->middleware('check.role:admin,super_admin')->group(function () {
@@ -246,4 +238,13 @@ Route::get('/auth/callback', function () {
     $user = Socialite::driver('github')->user();
 
     // $user->token
+});
+
+// Routes publiques pour la participation anonyme aux présentations
+Route::prefix('presentation')->group(function () {
+    Route::post('/join', [PresentationController::class, 'joinSession']);
+    Route::get('/sessions/{sessionId}', [PresentationController::class, 'getSessionState']);
+    Route::get('/sessions/{sessionId}/leaderboard', [PresentationController::class, 'showLeaderboard']);
+    Route::post('/sessions/{sessionId}/answer', [PresentationController::class, 'submitAnswer']);
+    Route::get('/sessions/{sessionId}/participants/{participantId}', [PresentationController::class, 'getParticipantSessionState']);
 });

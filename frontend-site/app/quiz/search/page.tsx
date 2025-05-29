@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ShineBorder } from '@/components/magicui/shine-border';
 import { api } from '@/lib/api';
+import { API_ENDPOINTS } from '@/lib/api/endpoints';
 
 interface Quiz {
   id: number;
@@ -28,32 +29,61 @@ export default function SearchQuizPage() {
   const [categories, setCategories] = useState<string[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [error, setError] = useState<string | null>(null);
   
   useEffect(() => {
     // Charger les données initiales
     const fetchData = async () => {
       try {
         setIsLoading(true);
+        setError(null);
         
-        // Charger les quizzes
-        const quizzesResponse = await api.get('quizzes');
+        // Charger les quizzes publics
+        const quizzesResponse = await api.get(API_ENDPOINTS.quiz.public);
         if (quizzesResponse.success && quizzesResponse.data) {
-          setQuizzes(quizzesResponse.data.data || []);
+          setQuizzes(quizzesResponse.data.data || quizzesResponse.data);
         }
         
         // Charger les quizzes en vedette
-        const featuredResponse = await api.get('quizzes/featured');
+        const featuredResponse = await api.get(API_ENDPOINTS.quiz.featured);
         if (featuredResponse.success && featuredResponse.data) {
-          setFeaturedQuizzes(featuredResponse.data || []);
+          setFeaturedQuizzes(featuredResponse.data);
         }
         
         // Charger les catégories
-        const categoriesResponse = await api.get('quizzes/categories');
+        const categoriesResponse = await api.get(API_ENDPOINTS.quiz.categories);
         if (categoriesResponse.success && categoriesResponse.data) {
-          setCategories(categoriesResponse.data || []);
+          setCategories(categoriesResponse.data);
         }
       } catch (error) {
         console.error('Erreur lors du chargement des données:', error);
+        setError('Erreur lors du chargement des quiz');
+        
+        // Données de fallback en cas d'erreur
+        const mockQuizzes = [
+          {
+            id: 1,
+            title: 'JavaScript Fundamentals',
+            description: 'Test your knowledge of JavaScript basics',
+            category: 'Programming',
+            creator: { id: 1, username: 'CodeMaster', avatar: '' },
+            questions_count: 15,
+            created_at: '2023-10-15T10:30:00'
+          },
+          {
+            id: 2,
+            title: 'CSS Advanced Techniques',
+            description: 'Master advanced CSS concepts',
+            category: 'Web Design',
+            creator: { id: 2, username: 'DesignPro', avatar: '' },
+            questions_count: 12,
+            created_at: '2023-10-10T14:20:00'
+          }
+        ];
+        
+        setQuizzes(mockQuizzes);
+        setFeaturedQuizzes(mockQuizzes.slice(0, 1));
+        setCategories(['Programming', 'Web Design', 'Science', 'History']);
       } finally {
         setIsLoading(false);
       }

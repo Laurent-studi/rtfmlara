@@ -54,7 +54,6 @@ class Theme extends Model
 	protected $fillable = [
 		'name',
 		'code',
-		'filename',
 		'description',
 		'is_default',
 		'is_active',

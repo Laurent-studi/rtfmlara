@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api } from '@/lib/api';
 import AuthLayout from '../auth-layout';
+import { RainbowButton } from '@/components/magicui/rainbow-button';
 import styles from '../auth.module.css';
 
 export default function LoginPage() {
@@ -130,9 +131,11 @@ export default function LoginPage() {
           </Link>
         </div>
         
-        <button
+        <RainbowButton
           type="submit"
-          className={styles.formButton}
+          variant="outline"
+          size="lg"
+          className="w-full"
           disabled={isLoading}
         >
           {isLoading ? (
@@ -143,7 +146,7 @@ export default function LoginPage() {
               Connexion en cours...
             </>
           ) : 'Se connecter'}
-        </button>
+        </RainbowButton>
         
         <div className={styles.authSwitchWrapper}>
           <span>Vous n'avez pas de compte ?</span>

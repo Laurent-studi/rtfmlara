@@ -1,12 +1,15 @@
 import axios from 'axios';
+import { APP_CONFIG } from './config';
+import { mockApiData } from './api-mock';
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+const API_URL = APP_CONFIG.API_URL;
 
 interface ApiOptions {
   method?: string;
   headers?: Record<string, string>;
   body?: any;
   timeout?: number;
+  skipAuth?: boolean;
 }
 
 interface ApiError {
@@ -28,7 +31,7 @@ function isConnectivityError(error: unknown): boolean {
 }
 
 async function fetchAPI(endpoint: string, options: ApiOptions = {}) {
-  const { method = 'GET', headers = {}, body, timeout = 8000 } = options;
+  const { method = 'GET', headers = {}, body, timeout = APP_CONFIG.API_TIMEOUT, skipAuth = false } = options;
 
   const requestHeaders: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -36,20 +39,34 @@ async function fetchAPI(endpoint: string, options: ApiOptions = {}) {
     ...headers,
   };
 
-  // Ajouter le token d'authentification s'il existe
-  let token;
-  try {
-    if (typeof window !== 'undefined') {
-      token = localStorage.getItem('auth_token');
-      if (token) {
-        requestHeaders['Authorization'] = `Bearer ${token}`;
+  // Ajouter le token d'authentification s'il existe et si skipAuth n'est pas true
+  if (!skipAuth) {
+    let token;
+    try {
+      if (typeof window !== 'undefined') {
+        token = localStorage.getItem('auth_token');
+        if (token) {
+          requestHeaders['Authorization'] = `Bearer ${token}`;
+        }
       }
+    } catch (error) {
+      console.warn('Erreur lors de l\'accès à localStorage:', error);
     }
-  } catch (error) {
-    console.warn('Erreur lors de l\'accès à localStorage:', error);
   }
 
   const url = `${API_URL}/${endpoint}`;
+  
+  // Utiliser les données mockées pour les démonstrations
+  if (endpoint.includes('demo-session-123') || (endpoint.includes('quizzes/1') && endpoint.includes('demo'))) {
+    console.log(`🎭 Mode démo - Utilisation des données mockées pour ${endpoint}`);
+    const mockData = mockApiData[endpoint as keyof typeof mockApiData];
+    if (mockData) {
+      // Simuler un délai réseau
+      await new Promise(resolve => setTimeout(resolve, 200 + Math.random() * 300));
+      console.log(`✅ Données mockées retournées pour ${endpoint}`, mockData);
+      return mockData;
+    }
+  }
   
   try {
     // Debug - afficher les détails de la requête

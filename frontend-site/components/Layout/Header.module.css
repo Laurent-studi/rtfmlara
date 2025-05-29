@@ -1,0 +1,313 @@
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  backdrop-filter: blur(12px);
+  background: rgba(var(--background-rgb, 255, 255, 255), 0.85);
+  border-bottom: 1px solid var(--border, rgba(0, 0, 0, 0.1));
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 10px rgba(0, 0, 0, 0.05);
+}
+
+.headerScrolled {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  background: rgba(var(--background-rgb, 255, 255, 255), 0.95);
+}
+
+.headerContainer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  transition: transform 0.3s ease;
+  z-index: 51;
+}
+
+.logo:hover {
+  transform: scale(1.05);
+}
+
+.logoImg {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+}
+
+.logoText {
+  font-weight: 700;
+  font-size: 1.25rem;
+  background: linear-gradient(90deg, var(--primary, #ff7800), var(--secondary, #7c3aed));
+  -webkit-background-clip: text;
+  color: transparent;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+  letter-spacing: -0.02em;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.navItem {
+  position: relative;
+  color: var(--foreground, #000);
+  font-weight: 500;
+  font-size: 0.95rem;
+  padding: 0.5rem 0;
+  transition: color 0.3s ease;
+}
+
+.navItem::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 2px;
+  bottom: 0;
+  left: 0;
+  background: var(--primary, #ff7800);
+  transition: width 0.3s ease;
+  border-radius: 4px;
+}
+
+.navItem:hover {
+  color: var(--primary, #ff7800);
+}
+
+.navItem:hover::after {
+  width: 100%;
+}
+
+.navItemActive {
+  color: var(--primary, #ff7800);
+}
+
+.navItemActive::after {
+  width: 100%;
+}
+
+.navButton {
+  padding: 0.5rem 1.25rem;
+  background: var(--primary, #ff7800);
+  color: var(--primary-foreground, #fff);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  box-shadow: 0 4px 12px rgba(var(--primary-rgb, 255, 120, 0), 0.2);
+}
+
+.navButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(var(--primary-rgb, 255, 120, 0), 0.3);
+}
+
+.navButtonOutline {
+  padding: 0.5rem 1.25rem;
+  background: transparent;
+  color: var(--primary, #ff7800);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+  border: 2px solid var(--primary, #ff7800);
+}
+
+.navButtonOutline:hover {
+  background: var(--primary, #ff7800);
+  color: var(--primary-foreground, #fff);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(var(--primary-rgb, 255, 120, 0), 0.2);
+}
+
+.themeSelector {
+  position: relative;
+  margin-left: 0.75rem;
+}
+
+.themeSelectButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--card, rgba(255, 255, 255, 0.8));
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.1));
+  color: var(--foreground, #000);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.themeSelectButton:hover {
+  background: var(--primary, #ff7800);
+  color: var(--primary-foreground, #fff);
+  transform: rotate(30deg);
+}
+
+.themeSelectorDropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 0.5rem;
+  background: var(--card, rgba(255, 255, 255, 0.8));
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.1));
+  border-radius: 8px;
+  padding: 0.5rem;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  min-width: 180px;
+  z-index: 100;
+  backdrop-filter: blur(8px);
+}
+
+.themeSelect {
+  width: 100%;
+  padding: 0.5rem;
+  background: var(--background, #fff);
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.1));
+  color: var(--foreground, #000);
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: border-color 0.3s ease;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  background-size: 16px;
+  padding-right: 32px;
+}
+
+.themeSelect:hover {
+  border-color: var(--primary, #ff7800);
+}
+
+/* Menu mobile */
+.mobileMenuButton {
+  display: none;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 30px;
+  height: 20px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  z-index: 51;
+}
+
+.mobileMenuButton span {
+  display: block;
+  width: 100%;
+  height: 2px;
+  background-color: var(--foreground, #000);
+  transition: all 0.3s ease;
+  border-radius: 2px;
+}
+
+.mobileMenuActive span:nth-child(1) {
+  transform: translateY(9px) rotate(45deg);
+}
+
+.mobileMenuActive span:nth-child(2) {
+  opacity: 0;
+}
+
+.mobileMenuActive span:nth-child(3) {
+  transform: translateY(-9px) rotate(-45deg);
+}
+
+/* Media queries pour la responsivité */
+@media (max-width: 768px) {
+  .headerContainer {
+    padding: 0.75rem 1rem;
+  }
+  
+  .logoText {
+    font-size: 1rem;
+  }
+  
+  .mobileMenuButton {
+    display: flex;
+  }
+  
+  .nav {
+    position: fixed;
+    top: 0;
+    right: -100%;
+    flex-direction: column;
+    height: 100vh;
+    width: 250px;
+    background: var(--background, #fff);
+    box-shadow: -5px 0 15px rgba(0, 0, 0, 0.1);
+    padding: 80px 2rem 2rem;
+    transition: right 0.3s ease;
+    gap: 1.5rem;
+    z-index: 50;
+    align-items: flex-start;
+    justify-content: flex-start;
+    overflow-y: auto;
+  }
+  
+  .navMobileOpen {
+    right: 0;
+  }
+  
+  .themeSelector {
+    margin-left: 0;
+    margin-top: 1rem;
+  }
+  
+  .themeSelectButton {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+  
+  .themeSelectorDropdown {
+    position: relative;
+    margin-top: 1rem;
+    width: 100%;
+  }
+  
+  .navItem::after {
+    bottom: -4px;
+  }
+}
+
+@media (max-width: 640px) {
+  .logoText {
+    display: none;
+  }
+}
+
+/* Animation pour l'overlay du menu mobile */
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  z-index: 49;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.overlayVisible {
+  opacity: 1;
+  visibility: visible;
+} 

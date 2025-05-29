@@ -21,6 +21,15 @@ class QuizController extends Controller
     public function index(Request $request)
     {
         try {
+            // Vérifier si l'utilisateur est authentifié
+            if (!$request->user()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Utilisateur non authentifié',
+                    'error' => 'Attempt to read property "id" on null'
+                ], 401);
+            }
+            
             $quizzes = Quiz::where('creator_id', $request->user()->id)
                 ->with('questions')
                 ->orderBy('created_at', 'desc')
@@ -48,6 +57,15 @@ class QuizController extends Controller
     public function store(Request $request)
     {
         try {
+            // Vérifier si l'utilisateur est authentifié
+            if (!$request->user()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Utilisateur non authentifié',
+                    'error' => 'Attempt to read property "id" on null'
+                ], 401);
+            }
+            
             $validator = Validator::make($request->all(), [
                 'title' => 'required|string|max:100',
                 'description' => 'nullable|string',
@@ -123,6 +141,15 @@ class QuizController extends Controller
     public function update(Request $request, $id)
     {
         try {
+            // Vérifier si l'utilisateur est authentifié
+            if (!$request->user()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Utilisateur non authentifié',
+                    'error' => 'Attempt to read property "id" on null'
+                ], 401);
+            }
+            
             $quiz = Quiz::findOrFail($id);
 
             // Vérifier que l'utilisateur est le créateur du quiz
@@ -179,6 +206,15 @@ class QuizController extends Controller
     public function destroy($id)
     {
         try {
+            // Vérifier si l'utilisateur est authentifié
+            if (!auth()->user()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Utilisateur non authentifié',
+                    'error' => 'Attempt to read property "id" on null'
+                ], 401);
+            }
+            
             $quiz = Quiz::findOrFail($id);
 
             // Vérifier que l'utilisateur est le créateur du quiz
@@ -410,6 +446,45 @@ class QuizController extends Controller
                 'message' => 'Tag non trouvé ou erreur',
                 'error' => $e->getMessage()
             ], 404);
+        }
+    }
+
+    /**
+     * Récupérer les quiz récents de l'utilisateur.
+     *
+     * @param \Illuminate\Http\Request $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function recent(Request $request)
+    {
+        try {
+            // Vérifier si l'utilisateur est authentifié
+            if (!$request->user()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Utilisateur non authentifié',
+                    'error' => 'Attempt to read property "id" on null'
+                ], 401);
+            }
+            
+            $quizzes = Quiz::where('creator_id', $request->user()->id)
+                ->with('questions')
+                ->orderBy('created_at', 'desc')
+                ->limit(5)
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'quizzes' => $quizzes
+                ]
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Une erreur s\'est produite lors de la récupération des quiz récents',
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 

@@ -13,30 +13,22 @@ return new class extends Migration
     {
         Schema::create('themes', function (Blueprint $table) {
             $table->id();
-            $table->string('name', 100);
+            $table->string('name', 100); // Nom affiché du thème
+            $table->string('code', 50)->unique(); // ex: 'dark', 'light', 'neon'
+            $table->string('filename', 100); // ex: 'dark.css', 'light.css'
             $table->string('description')->nullable();
-            $table->string('primary_color', 20);
-            $table->string('secondary_color', 20);
-            $table->string('accent_color', 20)->nullable();
-            $table->string('text_color', 20);
-            $table->string('background_color', 20);
-            $table->string('card_color', 20)->nullable();
-            $table->boolean('is_dark')->default(false);
-            $table->string('font_family', 100)->nullable();
-            $table->integer('border_radius')->default(8);
-            $table->string('css_variables')->nullable();
-            $table->boolean('is_default')->default(false);
-            $table->boolean('is_user_selectable')->default(true);
-            $table->foreignId('created_by')->nullable()->constrained('users')->onDelete('set null');
+            $table->boolean('is_default')->default(false); // Thème par défaut
+            $table->boolean('is_active')->default(true); // Thème activé ou non
             $table->timestamps();
         });
 
-        // Table pivot pour les thèmes des utilisateurs
-        Schema::create('user_themes', function (Blueprint $table) {
+        // Table pour stocker les préférences de thème des utilisateurs
+        Schema::create('user_preferences', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->foreignId('theme_id')->constrained()->onDelete('cascade');
-            $table->timestamp('applied_at')->useCurrent();
+            $table->foreignId('theme_id')->nullable()->constrained()->onDelete('set null');
+            $table->json('preferences')->nullable(); // Autres préférences utilisateur
+            $table->timestamps();
         });
     }
 
@@ -45,7 +37,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('user_themes');
+        Schema::dropIfExists('user_preferences');
         Schema::dropIfExists('themes');
     }
 };

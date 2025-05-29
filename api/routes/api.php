@@ -38,8 +38,10 @@ Route::get('/quizzes/public', [QuizController::class, 'public']);
 Route::get('/quizzes/featured', [QuizController::class, 'featured']);
 Route::get('/quizzes/categories', [QuizController::class, 'categories']);
 
-// Thème saisonnier actif (public)
+// Thèmes (publics)
+Route::get('/themes', [ThemeController::class, 'index']);
 Route::get('/themes/current', [SeasonalThemeController::class, 'getCurrentTheme']);
+Route::get('/themes/default', [ThemeController::class, 'default']);
 
 // Routes pour les tags (publiques)
 Route::get('/tags', [TagController::class, 'index']);
@@ -55,6 +57,8 @@ Route::middleware('auth:sanctum')->group(function () {
     
     // Quiz
     Route::apiResource('quizzes', QuizController::class);
+    Route::post('/quizzes/random', [QuizController::class, 'createRandomQuiz']);
+    Route::get('/quizzes/recent', [QuizController::class, 'recent']);
     
     // Questions et réponses
     Route::apiResource('quizzes.questions', QuestionController::class)->shallow();
@@ -166,13 +170,18 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/exports/download/{id}', [PdfExportController::class, 'download']);
     Route::delete('/exports/{id}', [PdfExportController::class, 'destroy']);
     
-    // Thèmes saisonniers
-    Route::get('/themes', [SeasonalThemeController::class, 'index']);
-    Route::post('/themes', [SeasonalThemeController::class, 'store']);
-    Route::get('/themes/{id}', [SeasonalThemeController::class, 'show']);
-    Route::put('/themes/{id}', [SeasonalThemeController::class, 'update']);
-    Route::delete('/themes/{id}', [SeasonalThemeController::class, 'destroy']);
-    Route::post('/themes/{id}/activate', [SeasonalThemeController::class, 'activate']);
+    // Thèmes (routes protégées)
+    Route::prefix('themes')->group(function () {
+        // Ces routes sont déjà définies en public: index, default
+        Route::get('/current', [ThemeController::class, 'getCurrentUserTheme']);
+        Route::post('/', [ThemeController::class, 'store']);
+        Route::get('/{id}', [ThemeController::class, 'show']);
+        Route::put('/{id}', [ThemeController::class, 'update']);
+        Route::delete('/{id}', [ThemeController::class, 'destroy']);
+        Route::post('/{id}/set-default', [ThemeController::class, 'setDefault']);
+        Route::post('/apply', [ThemeController::class, 'applyTheme']);
+        Route::post('/reset', [ThemeController::class, 'resetTheme']);
+    });
     
     // Effets sonores
     Route::get('/sounds', [SoundEffectController::class, 'index']);
@@ -205,8 +214,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/friends/search', [FriendController::class, 'searchUsers']);
 
     // Thèmes
-    Route::get('/user/preferences/theme', [ThemeController::class, 'userTheme']);
-    Route::post('/user/preferences/theme', [ThemeController::class, 'setUserTheme']);
+    Route::get('/user/theme', [ThemeController::class, 'getUserTheme']);
+    Route::post('/user/theme', [ThemeController::class, 'setUserTheme']);
     
     // Administration (protégé par role admin)
     Route::prefix('admin')->middleware('check.role:admin,super_admin')->group(function () {
@@ -218,16 +227,13 @@ Route::middleware('auth:sanctum')->group(function () {
 });
 
 // Routes pour les quiz accessibles publiquement
-Route::get('/quizzes', [QuizController::class, 'index']);
-Route::get('/quizzes/{id}', [QuizController::class, 'show']);
-
-// Routes pour les quiz nécessitant une authentification
-Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/quizzes', [QuizController::class, 'store']);
-    Route::post('/quizzes/random', [QuizController::class, 'createRandomQuiz']);
-    Route::put('/quizzes/{id}', [QuizController::class, 'update']);
-    Route::delete('/quizzes/{id}', [QuizController::class, 'destroy']);
-});
+// Ces routes sont déplacées dans le groupe protégé ci-dessus
+// Route::get('/quizzes', [QuizController::class, 'index']);
+// Route::get('/quizzes/{id}', [QuizController::class, 'show']);
+// Route::post('/quizzes', [QuizController::class, 'store']);
+// Route::post('/quizzes/random', [QuizController::class, 'createRandomQuiz']);
+// Route::put('/quizzes/{id}', [QuizController::class, 'update']);
+// Route::delete('/quizzes/{id}', [QuizController::class, 'destroy']);
 
 
 use Laravel\Socialite\Facades\Socialite;

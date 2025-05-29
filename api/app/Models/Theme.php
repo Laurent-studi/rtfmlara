@@ -9,6 +9,7 @@ namespace App\Models;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
  * Class Theme
@@ -46,12 +47,17 @@ class Theme extends Model
 		'border_radius' => 'int',
 		'is_default' => 'bool',
 		'is_user_selectable' => 'bool',
-		'created_by' => 'int'
+		'created_by' => 'int',
+		'is_active' => 'boolean',
 	];
 
 	protected $fillable = [
 		'name',
+		'code',
+		'filename',
 		'description',
+		'is_default',
+		'is_active',
 		'primary_color',
 		'secondary_color',
 		'accent_color',
@@ -62,7 +68,6 @@ class Theme extends Model
 		'font_family',
 		'border_radius',
 		'css_variables',
-		'is_default',
 		'is_user_selectable',
 		'created_by'
 	];
@@ -72,9 +77,42 @@ class Theme extends Model
 		return $this->belongsTo(User::class, 'created_by');
 	}
 
+	/**
+	 * Les utilisateurs qui ont ce thème comme préférence
+	 */
 	public function users()
 	{
-		return $this->belongsToMany(User::class, 'user_themes')
-					->withPivot('id', 'applied_at');
+		return $this->hasMany(UserPreference::class);
+	}
+
+	/**
+	 * Retourne le thème par défaut
+	 */
+	public static function getDefaultTheme()
+	{
+		return self::where('is_default', true)->first();
+	}
+
+	/**
+	 * Retourne tous les thèmes actifs
+	 */
+	public static function getActiveThemes()
+	{
+		return self::where('is_active', true)->get();
+	}
+
+	/**
+	 * Définit ce thème comme le thème par défaut
+	 */
+	public function setAsDefault()
+	{
+		self::where('is_default', true)
+			->where('id', '!=', $this->id)
+			->update(['is_default' => false]);
+		
+		$this->is_default = true;
+		$this->save();
+		
+		return $this;
 	}
 }

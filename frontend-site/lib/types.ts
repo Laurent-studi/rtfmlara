@@ -1,68 +1,65 @@
-// Types pour les utilisateurs et l'authentification
-export interface Role {
-  id: number;
-  name: string;
-  description?: string;
-  permissions?: string[];
-}
-
+// Types pour les utilisateurs
 export interface User {
   id: number;
   username: string;
   email: string;
-  avatar: string | null;
+  avatar?: string | null;
   roles?: Role[];
-  trophies_count?: number;
-  achievement_points?: number;
 }
 
-// Fonction utilitaire pour vérifier les rôles
-export function hasRole(user: User | null, roleName: string): boolean {
-  if (!user || !user.roles) {
-    return false;
-  }
-  
-  return user.roles.some(role => role.name === roleName);
+export interface Role {
+  id: number;
+  name: string;
 }
 
+// Helpers pour vérifier les rôles
 export function isCreator(user: User | null): boolean {
-  return hasRole(user, 'creator') || hasRole(user, 'admin') || hasRole(user, 'super_admin');
+  if (!user || !user.roles) return false;
+  return user.roles.some(role => role.name === 'creator' || role.name === 'admin');
 }
 
 export function isAdmin(user: User | null): boolean {
-  return hasRole(user, 'admin') || hasRole(user, 'super_admin');
+  if (!user || !user.roles) return false;
+  return user.roles.some(role => role.name === 'admin');
 }
 
-export function isSuperAdmin(user: User | null): boolean {
-  return hasRole(user, 'super_admin');
-}
-
-// Types pour les quiz et questions
+// Types pour les quiz
 export interface Quiz {
   id: number;
-  name: string;
+  title: string;
   description?: string;
   creator_id: number;
-  creator?: User;
-  questions_count?: number;
   created_at?: string;
   updated_at?: string;
+  category?: string;
+  time_per_question?: number;
+  status?: string;
+  code?: string;
+  questions?: Question[];
 }
 
+// Types pour les questions
 export interface Question {
-  id: number;
+  id?: number;
   quiz_id: number;
-  text: string;
+  question_text: string;
   points?: number;
   time_limit?: number;
-  type?: string; // 'single_choice', 'multiple_choice', etc.
+  multiple_answers?: boolean;
+  order_index?: number;
+  created_at?: string;
+  updated_at?: string;
+  answers?: Answer[];
 }
 
+// Types pour les réponses
 export interface Answer {
-  id: number;
-  question_id: number;
-  text: string;
+  id?: number;
+  question_id?: number;
+  answer_text: string;
   is_correct: boolean;
+  explanation?: string | null;
+  order_index?: number;
 }
 
 // Types pour les réalisations

@@ -1,120 +1,93 @@
 'use client';
 
-import { useTheme } from '@/hooks/useTheme';
+import { useTheme } from '@/app/providers/ThemeProvider';
 import { useState, useEffect } from 'react';
-import { api } from '@/lib/api';
 import { motion } from 'framer-motion';
 
-type ThemeOption = {
+// Définition de l'interface Theme
+interface ThemeOption {
   id: number;
   name: string;
   code: string;
-  description: string;
-  is_premium: boolean;
-};
-
-// Thèmes par défaut au cas où l'API n'est pas disponible
-const defaultThemes: ThemeOption[] = [
-  {
-    id: 1,
-    name: 'Dark',
-    code: 'theme-dark',
-    description: 'Thème sombre avec des tons indigo et violet',
-    is_premium: false
-  },
-  {
-    id: 2,
-    name: 'Light',
-    code: 'theme-light',
-    description: 'Thème clair avec des couleurs bleu',
-    is_premium: false
-  },
-  {
-    id: 3,
-    name: 'Neon',
-    code: 'theme-neon',
-    description: 'Thème vibrant avec des couleurs néon',
-    is_premium: true
-  }
-];
+  filename: string;
+  description: string | null;
+  is_default: boolean;
+  is_active: boolean;
+  is_premium?: boolean;
+}
 
 export default function ThemeSelector() {
-  const { theme, setTheme } = useTheme();
-  const [themes, setThemes] = useState<ThemeOption[]>(defaultThemes);
-  const [loading, setLoading] = useState(true);
+  const { currentTheme, themes, isLoading, setTheme } = useTheme();
 
-  useEffect(() => {
-    const fetchThemes = async () => {
-      try {
-        const data = await api.getThemes();
-        if (data && Array.isArray(data) && data.length > 0) {
-          setThemes(data);
-        } else if (data && data.data && Array.isArray(data.data) && data.data.length > 0) {
-          // Au cas où l'API renvoie les données dans un objet avec une propriété 'data'
-          setThemes(data.data);
-        }
-      } catch (error) {
-        console.error('Erreur lors du chargement des thèmes:', error);
-        // En cas d'erreur, on garde les thèmes par défaut
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchThemes();
-  }, []);
-
-  const handleThemeChange = (themeCode: string) => {
-    setTheme(themeCode);
-    
-    // Si l'utilisateur est connecté, sauvegarder la préférence
-    try {
-      const selectedTheme = themes.find(t => t.code === themeCode);
-      if (selectedTheme) {
-        api.saveUserTheme(selectedTheme.id.toString())
-          .catch(error => console.error('Erreur lors de la sauvegarde du thème:', error));
-      }
-    } catch (error) {
-      console.error('Erreur lors du changement de thème:', error);
-    }
-  };
-
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="p-4 bg-white/10 backdrop-blur-xl rounded-lg text-white">
+      <div className="card-glass p-4 rounded-lg text-foreground">
         Chargement des thèmes...
       </div>
     );
   }
 
   return (
-    <div className="p-4 bg-white/10 backdrop-blur-xl rounded-lg text-white">
-      <h3 className="text-lg font-medium mb-4">Choisir un thème</h3>
-      <div className="grid gap-3">
-        {themes.map((themeOption) => (
-          <motion.div
-            key={themeOption.code}
-            className={`p-3 rounded-lg cursor-pointer transition-all ${
-              theme === themeOption.code 
-                ? 'bg-white/20 border border-white/30' 
-                : 'bg-white/5 border border-white/10 hover:bg-white/10'
-            }`}
-            onClick={() => handleThemeChange(themeOption.code)}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <div className="flex items-center justify-between">
-              <h4 className="font-medium">{themeOption.name}</h4>
-              {themeOption.is_premium && (
-                <span className="text-xs px-2 py-1 bg-gradient-to-r from-yellow-400 to-yellow-500 text-black rounded-full">
-                  Premium
+    <div className="card-glass p-4 rounded-lg">
+      <h3 className="text-lg font-medium text-foreground mb-3">Thèmes</h3>
+      
+      <div className="grid grid-cols-2 gap-2">
+        {themes.map((theme) => {
+          const isActive = currentTheme?.id === theme.id;
+          
+          return (
+            <motion.button
+              key={theme.id}
+              onClick={() => setTheme(theme.id)}
+              className={`relative rounded-md p-3 transition-all duration-300 ${
+                isActive 
+                  ? 'ring-2 ring-primary shadow-lg' 
+                  : 'hover:bg-background/20'
+              }`}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <div className="flex flex-col items-center">
+                {/* Indicateur de thème actif */}
+                {isActive && (
+                  <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-primary"></div>
+                )}
+                
+                {/* Aperçu du thème */}
+                <div 
+                  className="w-full h-16 rounded mb-2"
+                  style={{ 
+                    background: theme.code === 'light' 
+                      ? 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)' 
+                      : theme.code === 'dark' 
+                      ? 'linear-gradient(135deg, #212529 0%, #343a40 100%)' 
+                      : theme.code === 'neon' 
+                      ? 'linear-gradient(135deg, #09090b 0%, #18181b 100%), radial-gradient(circle at top right, #f0abfc80, transparent 50%), radial-gradient(circle at bottom left, #22d3ee80, transparent 50%)' 
+                      : theme.code === 'elegant' 
+                      ? 'linear-gradient(135deg, #f8f5f0 0%, #ffffff 100%), radial-gradient(circle at top right, #8b5cf680, transparent 50%)' 
+                      : theme.code === 'pastel' 
+                      ? 'linear-gradient(135deg, #fcfaff 0%, #ffffff 100%), radial-gradient(circle at top right, #c4b5fd50, transparent 50%), radial-gradient(circle at bottom left, #93c5fd50, transparent 50%)' 
+                      : theme.code === 'fun' 
+                      ? 'linear-gradient(135deg, #fefbff 0%, #ffffff 100%), radial-gradient(circle at top right, #ff66c450, transparent 50%), radial-gradient(circle at bottom left, #3bf0c550, transparent 50%)' 
+                      : 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)'
+                  }}
+                ></div>
+                
+                <span className={`text-sm font-medium ${
+                  isActive ? 'text-primary' : 'text-foreground'
+                }`}>
+                  {theme.name}
                 </span>
-              )}
-            </div>
-            <p className="text-sm opacity-75 mt-1">{themeOption.description}</p>
-          </motion.div>
-        ))}
+              </div>
+            </motion.button>
+          );
+        })}
       </div>
+      
+      {/* Note informative */}
+      <p className="text-xs text-muted-foreground mt-4">
+        Le thème est enregistré localement dans votre navigateur.
+      </p>
     </div>
   );
 }

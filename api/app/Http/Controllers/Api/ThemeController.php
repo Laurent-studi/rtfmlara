@@ -4,94 +4,87 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Theme;
-use App\Models\UserTheme;
-use App\Models\UserPreference;
+use App\Services\ThemeService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Carbon;
 
 class ThemeController extends Controller
 {
-    /**
-     * Affiche la liste des thèmes.
-     * Possibilité de filtrer par type (user_selectable, dark_mode, etc.)
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function index(Request $request)
+    protected $themeService;
+
+    public function __construct(ThemeService $themeService)
     {
-        $query = Theme::query();
-        
-        // Filtre par thèmes sélectionnables par l'utilisateur
-        if ($request->has('user_selectable') && $request->user_selectable === 'true') {
-            $query->where('is_user_selectable', true);
-        }
-        
-        // Filtre par mode sombre
-        if ($request->has('dark_mode')) {
-            $query->where('is_dark', $request->dark_mode === 'true');
-        }
-        
-        // Filtre par thème par défaut
-        if ($request->has('default') && $request->default === 'true') {
-            $query->where('is_default', true);
-        }
-        
-        // Filtre par créateur (si admin)
-        if ($request->has('created_by')) {
-            $user = Auth::user();
-            if ($user && $user->roles()->where('name', 'admin')->exists()) {
-                $query->where('created_by', $request->created_by);
-            }
-        }
-        
-        $themes = $query->get();
-        
+        $this->themeService = $themeService;
+    }
+
+    /**
+     * Liste tous les thèmes actifs
+     */
+    public function index()
+    {
         return response()->json([
             'status' => 'success',
-            'data' => $themes
+            'data' => $this->themeService->getAllThemes()
         ]);
     }
 
     /**
-     * Crée un nouveau thème.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
+     * Récupère le thème par défaut
+     */
+    public function default()
+    {
+        $theme = $this->themeService->getDefaultTheme();
+        
+        if (!$theme) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Aucun thème par défaut n\'est défini'
+            ], Response::HTTP_NOT_FOUND);
+        }
+        
+        return response()->json([
+            'status' => 'success',
+            'data' => $theme
+        ]);
+    }
+
+    /**
+     * Récupère le thème actuel de l'utilisateur
+     */
+    public function getCurrentUserTheme()
+    {
+        $theme = $this->themeService->getUserTheme();
+        
+        return response()->json([
+            'status' => 'success',
+            'data' => $theme
+        ]);
+    }
+
+    /**
+     * Crée un nouveau thème (admin)
      */
     public function store(Request $request)
     {
-        $user = Auth::user();
-        
-        // Vérifier si l'utilisateur a les droits de créer un thème
-        if (!$user || (!$user->roles()->where('name', 'admin')->exists() && 
-                      !$user->roles()->where('name', 'designer')->exists())) {
+        // Vérification des droits d'admin - à adapter selon votre logique d'autorisation
+        if (!$this->checkAdminRights()) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Vous n\'avez pas les droits nécessaires pour créer un thème'
+                'message' => 'Non autorisé'
             ], Response::HTTP_FORBIDDEN);
         }
         
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255|unique:themes',
+            'name' => 'required|string|max:100|unique:themes',
+            'code' => 'required|string|max:50|unique:themes',
+            'filename' => 'required|string|max:100',
             'description' => 'nullable|string',
-            'primary_color' => 'required|string|regex:/^#[a-fA-F0-9]{6}$/',
-            'secondary_color' => 'required|string|regex:/^#[a-fA-F0-9]{6}$/',
-            'accent_color' => 'nullable|string|regex:/^#[a-fA-F0-9]{6}$/',
-            'text_color' => 'required|string|regex:/^#[a-fA-F0-9]{6}$/',
-            'background_color' => 'required|string|regex:/^#[a-fA-F0-9]{6}$/',
-            'card_color' => 'nullable|string|regex:/^#[a-fA-F0-9]{6}$/',
-            'is_dark' => 'required|boolean',
-            'font_family' => 'nullable|string|max:255',
-            'border_radius' => 'required|integer|min:0|max:20',
-            'css_variables' => 'nullable|string',
             'is_default' => 'boolean',
-            'is_user_selectable' => 'boolean'
+            'is_active' => 'boolean',
         ]);
-
+        
         if ($validator->fails()) {
             return response()->json([
                 'status' => 'error',
@@ -99,18 +92,9 @@ class ThemeController extends Controller
                 'errors' => $validator->errors()
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
-
-        // Si le thème est défini comme par défaut, mettre tous les autres à false
-        if ($request->has('is_default') && $request->is_default) {
-            Theme::where('is_default', true)->update(['is_default' => false]);
-        }
-
-        // Ajouter l'ID du créateur
-        $data = $request->all();
-        $data['created_by'] = $user->id;
-
-        $theme = Theme::create($data);
-
+        
+        $theme = $this->themeService->createTheme($request->all());
+        
         return response()->json([
             'status' => 'success',
             'message' => 'Thème créé avec succès',
@@ -119,38 +103,10 @@ class ThemeController extends Controller
     }
 
     /**
-     * Affiche un thème spécifique.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * Affiche les détails d'un thème
      */
     public function show($id)
     {
-        $theme = Theme::with('user')->find($id);
-        
-        if (!$theme) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Thème non trouvé'
-            ], Response::HTTP_NOT_FOUND);
-        }
-
-        return response()->json([
-            'status' => 'success',
-            'data' => $theme
-        ]);
-    }
-
-    /**
-     * Met à jour un thème spécifique.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
-    public function update(Request $request, $id)
-    {
-        $user = Auth::user();
         $theme = Theme::find($id);
         
         if (!$theme) {
@@ -160,32 +116,34 @@ class ThemeController extends Controller
             ], Response::HTTP_NOT_FOUND);
         }
         
-        // Vérifier si l'utilisateur a les droits de modifier ce thème
-        if (!$user || (!$user->roles()->where('name', 'admin')->exists() && 
-                       $theme->created_by !== $user->id)) {
+        return response()->json([
+            'status' => 'success',
+            'data' => $theme
+        ]);
+    }
+
+    /**
+     * Met à jour un thème existant (admin)
+     */
+    public function update(Request $request, $id)
+    {
+        // Vérification des droits d'admin
+        if (!$this->checkAdminRights()) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Vous n\'avez pas les droits nécessaires pour modifier ce thème'
+                'message' => 'Non autorisé'
             ], Response::HTTP_FORBIDDEN);
         }
-
+        
         $validator = Validator::make($request->all(), [
-            'name' => 'sometimes|required|string|max:255|unique:themes,name,' . $id,
+            'name' => 'sometimes|required|string|max:100|unique:themes,name,' . $id,
+            'code' => 'sometimes|required|string|max:50|unique:themes,code,' . $id,
+            'filename' => 'sometimes|required|string|max:100',
             'description' => 'nullable|string',
-            'primary_color' => 'sometimes|required|string|regex:/^#[a-fA-F0-9]{6}$/',
-            'secondary_color' => 'sometimes|required|string|regex:/^#[a-fA-F0-9]{6}$/',
-            'accent_color' => 'nullable|string|regex:/^#[a-fA-F0-9]{6}$/',
-            'text_color' => 'sometimes|required|string|regex:/^#[a-fA-F0-9]{6}$/',
-            'background_color' => 'sometimes|required|string|regex:/^#[a-fA-F0-9]{6}$/',
-            'card_color' => 'nullable|string|regex:/^#[a-fA-F0-9]{6}$/',
-            'is_dark' => 'sometimes|required|boolean',
-            'font_family' => 'nullable|string|max:255',
-            'border_radius' => 'sometimes|required|integer|min:0|max:20',
-            'css_variables' => 'nullable|string',
             'is_default' => 'boolean',
-            'is_user_selectable' => 'boolean'
+            'is_active' => 'boolean',
         ]);
-
+        
         if ($validator->fails()) {
             return response()->json([
                 'status' => 'error',
@@ -193,16 +151,16 @@ class ThemeController extends Controller
                 'errors' => $validator->errors()
             ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
-
-        // Si le thème est défini comme par défaut, mettre tous les autres à false
-        if ($request->has('is_default') && $request->is_default) {
-            Theme::where('is_default', true)
-                 ->where('id', '!=', $id)
-                 ->update(['is_default' => false]);
+        
+        $theme = $this->themeService->updateTheme($id, $request->all());
+        
+        if (!$theme) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Thème non trouvé'
+            ], Response::HTTP_NOT_FOUND);
         }
-
-        $theme->update($request->all());
-
+        
         return response()->json([
             'status' => 'success',
             'message' => 'Thème mis à jour avec succès',
@@ -211,50 +169,27 @@ class ThemeController extends Controller
     }
 
     /**
-     * Supprime un thème spécifique.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * Supprime un thème (admin)
      */
     public function destroy($id)
     {
-        $user = Auth::user();
-        $theme = Theme::find($id);
-        
-        if (!$theme) {
+        // Vérification des droits d'admin
+        if (!$this->checkAdminRights()) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Thème non trouvé'
-            ], Response::HTTP_NOT_FOUND);
-        }
-        
-        // Vérifier si l'utilisateur a les droits de supprimer ce thème
-        if (!$user || (!$user->roles()->where('name', 'admin')->exists() && 
-                       $theme->created_by !== $user->id)) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Vous n\'avez pas les droits nécessaires pour supprimer ce thème'
+                'message' => 'Non autorisé'
             ], Response::HTTP_FORBIDDEN);
         }
         
-        // Vérifier si c'est le thème par défaut
-        if ($theme->is_default) {
+        $result = $this->themeService->deleteTheme($id);
+        
+        if (!$result) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Impossible de supprimer le thème par défaut'
-            ], Response::HTTP_CONFLICT);
+                'message' => 'Impossible de supprimer ce thème. Il n\'existe pas ou c\'est le thème par défaut.'
+            ], Response::HTTP_BAD_REQUEST);
         }
         
-        // Vérifier si le thème est utilisé par des utilisateurs
-        if ($theme->users()->count() > 0) {
-            return response()->json([
-                'status' => 'error',
-                'message' => 'Impossible de supprimer ce thème car il est utilisé par des utilisateurs'
-            ], Response::HTTP_CONFLICT);
-        }
-
-        $theme->delete();
-
         return response()->json([
             'status' => 'success',
             'message' => 'Thème supprimé avec succès'
@@ -262,23 +197,19 @@ class ThemeController extends Controller
     }
 
     /**
-     * Applique un thème à l'utilisateur courant.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
+     * Définit un thème comme thème par défaut (admin)
      */
-    public function applyTheme($id)
+    public function setDefault($id)
     {
-        $user = Auth::user();
-        
-        if (!$user) {
+        // Vérification des droits d'admin
+        if (!$this->checkAdminRights()) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Utilisateur non authentifié'
-            ], Response::HTTP_UNAUTHORIZED);
+                'message' => 'Non autorisé'
+            ], Response::HTTP_FORBIDDEN);
         }
         
-        $theme = Theme::find($id);
+        $theme = $this->themeService->setDefaultTheme($id);
         
         if (!$theme) {
             return response()->json([
@@ -287,20 +218,40 @@ class ThemeController extends Controller
             ], Response::HTTP_NOT_FOUND);
         }
         
-        // Vérifier si le thème est sélectionnable par l'utilisateur
-        if (!$theme->is_user_selectable && !$user->roles()->where('name', 'admin')->exists()) {
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Thème défini comme thème par défaut',
+            'data' => $theme
+        ]);
+    }
+
+    /**
+     * Applique un thème à l'utilisateur connecté
+     */
+    public function applyTheme(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'theme_id' => 'required|exists:themes,id',
+        ]);
+        
+        if ($validator->fails()) {
             return response()->json([
                 'status' => 'error',
-                'message' => 'Ce thème n\'est pas disponible pour les utilisateurs'
-            ], Response::HTTP_FORBIDDEN);
+                'message' => 'Validation échouée',
+                'errors' => $validator->errors()
+            ], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
         
-        // Enregistrer l'application du thème
-        UserTheme::create([
-            'user_id' => $user->id,
-            'theme_id' => $theme->id,
-            'applied_at' => Carbon::now()
-        ]);
+        $result = $this->themeService->setUserTheme($request->theme_id);
+        
+        if (!$result) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Impossible d\'appliquer ce thème'
+            ], Response::HTTP_BAD_REQUEST);
+        }
+        
+        $theme = Theme::find($request->theme_id);
         
         return response()->json([
             'status' => 'success',
@@ -309,29 +260,36 @@ class ThemeController extends Controller
         ]);
     }
 
-    public function userTheme()
+    /**
+     * Réinitialise le thème de l'utilisateur au thème par défaut
+     */
+    public function resetTheme()
     {
-        $user = Auth::user();
-        $preferences = UserPreference::where('user_id', $user->id)->first();
+        $result = $this->themeService->resetUserTheme();
         
-        if ($preferences && $preferences->theme_id) {
-            return response()->json(Theme::find($preferences->theme_id));
+        if (!$result) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Impossible de réinitialiser le thème'
+            ], Response::HTTP_BAD_REQUEST);
         }
         
-        return response()->json(Theme::where('is_default', true)->first());
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Thème réinitialisé avec succès',
+            'data' => $this->themeService->getDefaultTheme()
+        ]);
     }
 
-    public function setUserTheme(Request $request)
+    /**
+     * Vérifie si l'utilisateur a les droits d'administration
+     */
+    private function checkAdminRights(): bool
     {
-        $request->validate([
-            'theme_id' => 'required|exists:themes,id',
-        ]);
-
         $user = Auth::user();
-        $preferences = UserPreference::firstOrNew(['user_id' => $user->id]);
-        $preferences->theme_id = $request->theme_id;
-        $preferences->save();
-
-        return response()->json(['message' => 'Thème mis à jour avec succès']);
+        
+        // À adapter selon votre logique d'autorisation
+        // Par exemple : return $user && $user->isAdmin();
+        return $user && $user->roles()->where('name', 'admin')->exists();
     }
 }

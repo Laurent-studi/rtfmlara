@@ -3,10 +3,10 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import { Particles } from '@/components/magicui/particles';
-import { ShineBorder } from '@/components/magicui/shine-border';
+import Link from 'next/link';
 import { api } from '@/lib/api';
+import AuthLayout from '../auth-layout';
+import styles from '../auth.module.css';
 
 export default function ForgotPasswordPage() {
   const router = useRouter();
@@ -15,6 +15,10 @@ export default function ForgotPasswordPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [email, setEmail] = useState('');
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -22,141 +26,98 @@ export default function ForgotPasswordPage() {
     setSuccess(null);
     
     try {
-      await api.post('forgot-password', { email });
+      await api.post('password/email', { email });
       
-      // Message de succès
-      setSuccess('Un email de récupération a été envoyé à votre adresse si elle existe dans notre base de données.');
-      setEmail(''); // Réinitialiser le champ
+      setSuccess('Un lien de réinitialisation de mot de passe a été envoyé à votre adresse email.');
+      setEmail('');
     } catch (error: any) {
-      console.error('Erreur de récupération:', error);
-      setError(error.message || 'Une erreur est survenue lors de l\'envoi de l\'email de récupération');
+      console.error('Erreur lors de la demande de réinitialisation:', error);
+      setError(error.message || 'Une erreur est survenue lors de la demande de réinitialisation');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#0D111E] relative overflow-hidden">
-      <Particles className="absolute inset-0" />
-      <Particles className="absolute inset-0" quantity={30} color="#4f46e5" size={0.8} />
-      <Particles className="absolute inset-0" quantity={20} color="#7c3aed" size={1.2} />
-      <Particles className="absolute inset-0" quantity={15} color="#ec4899" size={1.6} />
+    <AuthLayout>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <h1 className={styles.authTitle}>Mot de passe oublié</h1>
+        <p className={styles.authSubtitle}>Entrez votre email pour réinitialiser votre mot de passe</p>
+      </motion.div>
       
-      <div className="container mx-auto px-4 py-16 relative z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-8"
+      {error && (
+        <motion.div 
+          className={styles.formError}
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
         >
-          <div className="flex items-center justify-center gap-4 mb-6">
-            <Image
-              src="/img/logo4.png"
-              alt="RTFM2Win Logo"
-              width={60}
-              height={60}
-              className="rounded-lg"
-            />
-            <h1 className="text-4xl md:text-5xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">
-              RTFM2Win
-            </h1>
-          </div>
+          {error}
         </motion.div>
-
-        <div className="max-w-md mx-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-white/5 backdrop-blur-xl rounded-2xl p-8 shadow-2xl border border-white/10 relative"
-          >
-            <ShineBorder borderWidth={1} duration={14} shineColor={["#4f46e5", "#7c3aed", "#ec4899"]} />
-            
-            <h2 className="text-2xl font-bold text-white mb-6 text-center">Mot de passe oublié</h2>
-            
-            <p className="text-gray-300 mb-6 text-center">
-              Entrez votre adresse email et nous vous enverrons un lien pour réinitialiser votre mot de passe.
-            </p>
-
-            {error && (
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-red-500/20 border border-red-500/50 text-white p-3 rounded-lg mb-4"
-              >
-                {error.split('\n').map((line, i) => (
-                  <div key={i} className={i > 0 ? 'mt-1' : ''}>
-                    {line}
-                  </div>
-                ))}
-              </motion.div>
-            )}
-
-            {success && (
-              <motion.div 
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-green-500/20 border border-green-500/50 text-white p-3 rounded-lg mb-4"
-              >
-                {success}
-              </motion.div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-              >
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Votre adresse email"
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
-                  required
-                />
-              </motion.div>
-
-              <motion.button
-                type="submit"
-                className="w-full py-3 px-4 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-indigo-500/25 transition-all duration-200 mt-6"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <div className="flex items-center justify-center">
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Envoi en cours...
-                  </div>
-                ) : 'Envoyer le lien de récupération'}
-              </motion.button>
-            </form>
-
-            <div className="mt-6 text-center flex flex-col space-y-3">
-              <div className="text-gray-400">
-                Vous vous souvenez de votre mot de passe ? 
-                <a 
-                  href="/auth" 
-                  className="text-indigo-400 hover:text-indigo-300 transition-colors duration-200 ml-1"
-                >
-                  Se connecter
-                </a>
-              </div>
-              
-              <button
-                onClick={() => router.push('/')}
-                className="text-gray-400 hover:text-white transition-colors duration-200 mt-4"
-              >
-                Retour à l'accueil
-              </button>
-            </div>
-          </motion.div>
+      )}
+      
+      {success && (
+        <motion.div 
+          className={`${styles.formError} bg-green-500/10 border-green-500/30 text-green-600`}
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+        >
+          {success}
+        </motion.div>
+      )}
+      
+      <motion.form 
+        onSubmit={handleSubmit} 
+        className="space-y-4"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3 }}
+      >
+        <div className={styles.formGroup}>
+          <label htmlFor="email" className={styles.formLabel}>Email</label>
+          <input
+            id="email"
+            type="email"
+            name="email"
+            value={email}
+            onChange={handleInputChange}
+            className={styles.formInput}
+            placeholder="votre@email.com"
+            required
+          />
         </div>
-      </div>
-    </div>
+        
+        <button
+          type="submit"
+          className={styles.formButton}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <>
+              <svg className={styles.spinner} width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeDasharray="32" strokeLinecap="round" />
+              </svg>
+              Envoi en cours...
+            </>
+          ) : 'Envoyer le lien de réinitialisation'}
+        </button>
+        
+        <div className={styles.authSwitchWrapper}>
+          <span>Vous vous souvenez de votre mot de passe ?</span>
+          <Link href="/auth/login" className={styles.authSwitchLink}>
+            Se connecter
+          </Link>
+        </div>
+        
+        <div className="text-center mt-4">
+          <Link href="/" className={styles.authBackLink}>
+            Retour à l'accueil
+          </Link>
+        </div>
+      </motion.form>
+    </AuthLayout>
   );
 } 

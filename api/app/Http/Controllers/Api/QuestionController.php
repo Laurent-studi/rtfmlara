@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 
 class QuestionController extends Controller
 {
@@ -48,6 +49,14 @@ class QuestionController extends Controller
      */
     public function store(Request $request)
     {
+        // Vérifier si l'utilisateur est authentifié
+        if (!Auth::user()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Utilisateur non authentifié'
+            ], Response::HTTP_UNAUTHORIZED);
+        }
+        
         $validator = Validator::make($request->all(), [
             'quiz_id' => 'required|integer|exists:quizzes,id',
             'question_text' => 'required|string',
@@ -75,6 +84,14 @@ class QuestionController extends Controller
                 'status' => 'error',
                 'message' => 'Quiz non trouvé'
             ], Response::HTTP_NOT_FOUND);
+        }
+        
+        // Vérifier que l'utilisateur est le créateur du quiz
+        if ($quiz->creator_id !== Auth::id()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Vous n\'êtes pas autorisé à ajouter des questions à ce quiz'
+            ], Response::HTTP_FORBIDDEN);
         }
 
         // Vérifier qu'au moins une réponse est correcte
@@ -179,6 +196,14 @@ class QuestionController extends Controller
      */
     public function update(Request $request, $id)
     {
+        // Vérifier si l'utilisateur est authentifié
+        if (!Auth::user()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Utilisateur non authentifié'
+            ], Response::HTTP_UNAUTHORIZED);
+        }
+        
         $question = Question::find($id);
         
         if (!$question) {
@@ -186,6 +211,14 @@ class QuestionController extends Controller
                 'status' => 'error',
                 'message' => 'Question non trouvée'
             ], Response::HTTP_NOT_FOUND);
+        }
+        
+        // Vérifier que l'utilisateur est le créateur du quiz
+        if ($question->quiz->creator_id !== Auth::id()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Vous n\'êtes pas autorisé à modifier cette question'
+            ], Response::HTTP_FORBIDDEN);
         }
 
         $validator = Validator::make($request->all(), [
@@ -308,6 +341,14 @@ class QuestionController extends Controller
      */
     public function destroy($id)
     {
+        // Vérifier si l'utilisateur est authentifié
+        if (!Auth::user()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Utilisateur non authentifié'
+            ], Response::HTTP_UNAUTHORIZED);
+        }
+        
         $question = Question::find($id);
         
         if (!$question) {
@@ -315,6 +356,14 @@ class QuestionController extends Controller
                 'status' => 'error',
                 'message' => 'Question non trouvée'
             ], Response::HTTP_NOT_FOUND);
+        }
+        
+        // Vérifier que l'utilisateur est le créateur du quiz
+        if ($question->quiz->creator_id !== Auth::id()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Vous n\'êtes pas autorisé à supprimer cette question'
+            ], Response::HTTP_FORBIDDEN);
         }
 
         // Vérifier si la question a des réponses associées à des participants

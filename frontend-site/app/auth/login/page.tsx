@@ -3,12 +3,10 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
-import { Particles } from '@/components/magicui/particles';
-import { ShineBorder } from '@/components/magicui/shine-border';
-import { api } from '@/lib/api';
 import Link from 'next/link';
+import { api } from '@/lib/api';
 import AuthLayout from '../auth-layout';
+import styles from '../auth.module.css';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -71,67 +69,95 @@ export default function LoginPage() {
 
   return (
     <AuthLayout>
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-white">Connexion</h1>
-        <p className="text-gray-400 mt-2">Connectez-vous à votre compte RTFM2Win</p>
-      </div>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="relative z-20"
+      >
+        <h1 className={styles.authTitle}>Connexion</h1>
+        <p className={styles.authSubtitle}>Connectez-vous à votre compte RTFM2Win</p>
+      </motion.div>
       
       {error && (
-        <div className="bg-red-500/20 border border-red-500/50 text-white p-3 rounded-lg mb-6">
+        <motion.div 
+          className={styles.formError}
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+        >
           {error}
-        </div>
+        </motion.div>
       )}
       
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label htmlFor="email" className="block text-gray-400 mb-1">Email</label>
+      <motion.form 
+        onSubmit={handleSubmit} 
+        className="space-y-4 relative z-20"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.3 }}
+      >
+        <div className={styles.formGroup}>
+          <label htmlFor="email" className={styles.formLabel}>Email</label>
           <input
             id="email"
             type="email"
             name="email"
             value={formData.email}
             onChange={handleInputChange}
-            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+            className={styles.formInput}
+            placeholder="votre@email.com"
             required
           />
         </div>
         
-        <div>
-          <label htmlFor="password" className="block text-gray-400 mb-1">Mot de passe</label>
+        <div className={styles.formGroup}>
+          <label htmlFor="password" className={styles.formLabel}>Mot de passe</label>
           <input
             id="password"
             type="password"
             name="password"
             value={formData.password}
             onChange={handleInputChange}
-            className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+            className={styles.formInput}
+            placeholder="••••••••"
             required
           />
         </div>
         
-        <div className="text-right">
-          <Link href="/auth/forgot-password" className="text-indigo-400 hover:text-indigo-300 text-sm">
+        <div className={styles.formHelp}>
+          <Link href="/auth/forgot-password" className={styles.formHelpLink}>
             Mot de passe oublié ?
           </Link>
         </div>
         
         <button
           type="submit"
-          className="w-full py-3 px-4 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-semibold shadow-lg hover:shadow-indigo-500/25 transition-all duration-200 mt-6"
+          className={styles.formButton}
           disabled={isLoading}
         >
-          {isLoading ? 'Connexion en cours...' : 'Se connecter'}
+          {isLoading ? (
+            <>
+              <svg className={styles.spinner} width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeDasharray="32" strokeLinecap="round" />
+              </svg>
+              Connexion en cours...
+            </>
+          ) : 'Se connecter'}
         </button>
         
-        <div className="text-center mt-6">
-          <p className="text-gray-400">
-            Vous n'avez pas de compte ?{' '}
-            <Link href="/auth/register" className="text-indigo-400 hover:text-indigo-300">
-              Inscrivez-vous
-            </Link>
-          </p>
+        <div className={styles.authSwitchWrapper}>
+          <span>Vous n'avez pas de compte ?</span>
+          <Link href="/auth/register" className={styles.authSwitchLink}>
+            Inscrivez-vous
+          </Link>
         </div>
-      </form>
+        
+        <div className="text-center mt-4">
+          <Link href="/" className={styles.authBackLink}>
+            Retour à l'accueil
+          </Link>
+        </div>
+      </motion.form>
     </AuthLayout>
   );
 } 
